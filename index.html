@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快乐动物乐园</title>
+    <style>
+        /* --- 基础设置 --- */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+            background-color: #87CEEB; /* 天空蓝 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- 烟花画布 (修改了 z-index) --- */
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* z-index 调整为 5，位于天空(1)之上，但位于动物(20)之下 */
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        /* --- 背景元素：太阳与云朵 --- */
+        .sky-elements {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 50%;
+            z-index: 1;
+        }
+
+        /* 微笑的太阳 */
+        .sun {
+            position: absolute;
+            top: 30px;
+            right: 50px;
+            width: 100px;
+            height: 100px;
+            animation: spin 60s linear infinite;
+        }
+        
+        /* 装饰性云朵 */
+        .deco-cloud {
+            position: absolute;
+            background: #fff;
+            border-radius: 50px;
+            opacity: 0.9;
+            animation: float 10s ease-in-out infinite alternate;
+        }
+        .deco-cloud::after, .deco-cloud::before {
+            content: '';
+            position: absolute;
+            background: inherit;
+            border-radius: 50%;
+        }
+        /* 彩色云朵配置 */
+        .c1 { top: 50px; left: 10%; width: 100px; height: 40px; background: #FFD1DC; }
+        .c1::after { width: 50px; height: 50px; top: -25px; left: 15px; }
+        .c1::before { width: 40px; height: 40px; top: -15px; left: 50px; }
+
+        .c2 { top: 120px; left: 80%; width: 120px; height: 50px; background: #E0BBE4; animation-delay: 2s; }
+        .c2::after { width: 60px; height: 60px; top: -30px; left: 20px; }
+        .c2::before { width: 50px; height: 50px; top: -20px; left: 60px; }
+
+        .c3 { top: 80px; left: 40%; width: 90px; height: 35px; background: #FFFACD; animation-delay: 4s; }
+        .c3::after { width: 45px; height: 45px; top: -20px; left: 10px; }
+        .c3::before { width: 35px; height: 35px; top: -10px; left: 45px; }
+
+        /* --- 场景容器 (修改了 z-index) --- */
+        .scene {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 60%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            /* z-index 提高到 20，确保在烟花上面 */
+            z-index: 20;
+        }
+
+        /* 上半圆草坪 */
+        .lawn {
+            width: 130vw; /* 稍微加宽 */
+            height: 45vh; /* 稍微加高 */
+            background: #7CFC00;
+            border-radius: 50% 50% 0 0;
+            position: absolute;
+            bottom: -60px;
+            box-shadow: inset 0 20px 50px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 30px;
+        }
+
+        /* --- 动物容器 --- */
+        .animals-wrapper {
+            position: absolute;
+            top: -150px; /* 调整位置以适应更大的动物 */
+            display: flex;
+            gap: 40px;
+            align-items: flex-end;
+        }
+
+        .animal {
+            /* 增大动物尺寸容器 */
+            width: 140px;
+            height: 160px;
+            position: relative;
+            transition: transform 0.3s;
+        }
+
+        /* 动物的SVG样式 */
+        .animal svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        /* --- 新的动物动画 --- */
+        /* 爪子/腿部动画基类 */
+        .paw-group {
+            transform-box: fill-box;
+            transition: all 0.3s ease-in-out;
+        }
+
+        /* 鼓掌 (Clapping) - 前爪向内合拢 */
+        .clapping .left-paw-group {
+            transform-origin: center top;
+            animation: clapLeftNew 0.4s infinite alternate;
+        }
+        .clapping .right-paw-group {
+            transform-origin: center top;
+            animation: clapRightNew 0.4s infinite alternate;
+        }
+
+        /* 加油 (Cheering/Thumbs up) - 前爪举高 */
+        .thumbs-up .left-paw-group {
+            transform-origin: center bottom;
+            transform: translateY(-20px) rotate(-30deg);
+        }
+        .thumbs-up .right-paw-group {
+            transform-origin: center bottom;
+            transform: translateY(-20px) rotate(30deg);
+        }
+        /* 猫咪坐姿的特殊加油动作 */
+        .thumbs-up .cat-paw-lift {
+             transform: translateY(-15px);
+        }
+
+
+        /* 动物说话气泡 */
+        .speech-bubble {
+            position: absolute;
+            top: -50px;
+            left: 50%;
+            transform: translateX(-50%) scale(0);
+            background: #fff;
+            padding: 12px 18px;
+            border-radius: 25px;
+            font-weight: bold;
+            color: #333;
+            white-space: nowrap;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 30; /* 气泡在动物最上层 */
+        }
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            margin-left: -10px;
+            border-width: 10px 10px 0;
+            border-style: solid;
+            border-color: #fff transparent;
+        }
+        .speech-bubble.show {
+            transform: translateX(-50%) scale(1);
+        }
+
+        /* --- 交互 UI 区域 --- */
+        .ui-layer {
+            position: absolute;
+            top: 15%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 50;
+        }
+
+        /* 提问框 */
+        .question-box {
+            background: #FF6B6B;
+            color: white;
+            padding: 20px 40px;
+            border-radius: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: 0 10px 0 #C44D4D;
+            margin-bottom: 40px;
+            animation: popIn 0.5s;
+            max-width: 80%;
+            text-align: center;
+            transition: opacity 0.3s;
+        }
+
+        /* 选项容器 */
+        .options {
+            display: flex;
+            gap: 50px;
+        }
+
+        /* 云朵形状的按钮 */
+        .cloud-btn {
+            position: relative;
+            width: 120px;
+            height: 70px;
+            background: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #555;
+            z-index: 10;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .cloud-btn::before {
+            content: ""; position: absolute; top: -20px; left: 20px; width: 40px; height: 40px; background: inherit; border-radius: 50%;
+        }
+        .cloud-btn::after {
+            content: ""; position: absolute; top: -30px; right: 20px; width: 50px; height: 50px; background: inherit; border-radius: 50%;
+        }
+        .btn-yes { background: #4ECDC4; color: white; }
+        .btn-yes::before, .btn-yes::after { background: #4ECDC4; }
+        .btn-no { background: #FFA07A; color: white; }
+        .btn-no::before, .btn-no::after { background: #FFA07A; }
+        .cloud-btn:active { transform: scale(0.95); }
+        .cloud-btn:hover { transform: translateY(-5px); }
+
+        /* --- 返回按钮 (修改了位置) --- */
+        .return-btn {
+            position: fixed;
+            /* 从 bottom: 50px 改为 150px，上移了100像素 */
+            bottom: 150px;
+            width: 60px;
+            height: 60px;
+            background: #FFD700;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #DAA520;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s, transform 0.2s;
+            z-index: 60;
+        }
+        .return-btn.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .return-btn svg {
+            width: 30px;
+            height: 30px;
+            fill: white;
+        }
+        .return-btn:active {
+            box-shadow: 0 2px 0 #DAA520;
+            transform: translateY(3px);
+        }
+
+        /* --- 动画定义 --- */
+        @keyframes float {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(20px); }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @keyframes popIn {
+            0% { transform: scale(0); }
+            80% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        /* 新的鼓掌动画 */
+        @keyframes clapLeftNew {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(15deg) translateX(5px); }
+        }
+        @keyframes clapRightNew {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(-15deg) translateX(-5px); }
+        }
+
+        .hidden { display: none !important; }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas"></canvas>
+
+    <div class="sky-elements">
+        <div class="sun">
+            <svg viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="#FFD700" />
+                <g fill="none" stroke="#F4A460" stroke-width="3" stroke-linecap="round">
+                    <path d="M50 10 L50 5" /><path d="M50 90 L50 95" /><path d="M10 50 L5 50" /><path d="M90 50 L95 50" />
+                    <path d="M22 22 L18 18" /><path d="M78 78 L82 82" /><path d="M22 78 L18 82" /><path d="M78 22 L82 18" />
+                </g>
+                <circle cx="35" cy="45" r="4" fill="#333" /><circle cx="65" cy="45" r="4" fill="#333" />
+                <path d="M35 65 Q50 75 65 65" stroke="#333" stroke-width="3" fill="none" />
+            </svg>
+        </div>
+        <div class="deco-cloud c1"></div>
+        <div class="deco-cloud c2"></div>
+        <div class="deco-cloud c3"></div>
+    </div>
+
+    <div class="ui-layer">
+        <div class="question-box" id="questionBox">你是不是刚做完一件事？</div>
+        <div class="options" id="optionsBox">
+            <button class="cloud-btn btn-yes" onclick="handleChoice(true)">是</button>
+            <button class="cloud-btn btn-no" onclick="handleChoice(false)">否</button>
+        </div>
+    </div>
+
+    <div class="return-btn" id="returnBtn" onclick="resetState()">
+        <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+    </div>
+
+    <div class="scene">
+        <div class="lawn">
+            <div class="animals-wrapper">
+                
+                <div class="animal" id="pig">
+                    <div class="speech-bubble">你真棒！</div>
+                    <svg viewBox="0 0 150 150">
+                        <rect x="45" y="110" width="15" height="25" rx="5" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
+                        <rect x="90" y="110" width="15" height="25" rx="5" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
+                        <ellipse cx="75" cy="90" rx="55" ry="40" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
+                        <path d="M130 90 Q140 80 135 75 Q130 70 135 65" fill="none" stroke="#FF69B4" stroke-width="3" stroke-linecap="round"/>
+                        <g class="paw-group left-paw-group">
+                             <rect x="35" y="95" width="15" height="30" rx="5" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
+                        </g>
+                        <g class="paw-group right-paw-group">
+                             <rect x="100" y="95" width="15" height="30" rx="5" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
+                        </g>
+                        <circle cx="75" cy="60" r="35" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
+                        <path d="M45 40 L35 25 L60 35 Z" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
+                        <path d="M105 40 L115 25 L90 35 Z" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
+                         <ellipse cx="75" cy="65" rx="14" ry="10" fill="#FF69B4" /> <circle cx="70" cy="65" r="2" fill="#fff" /><circle cx="80" cy="65" r="2" fill="#fff" />
+                        <circle cx="63" cy="50" r="3" fill="#333" /><circle cx="87" cy="50" r="3" fill="#333" /> </svg>
+                </div>
+
+                <div class="animal" id="cat">
+                    <div class="speech-bubble">加油！</div>
+                    <svg viewBox="0 0 140 160">
+                        <path d="M110 120 Q140 130 130 100 Q120 70 130 50" fill="none" stroke="#FFA07A" stroke-width="8" stroke-linecap="round" />
+                        <ellipse cx="70" cy="110" rx="45" ry="35" fill="#FFA07A" stroke="#CD5C5C" stroke-width="2"/>
+                        <ellipse cx="40" cy="140" rx="15" ry="8" fill="#fff" stroke="#CD5C5C" stroke-width="2"/>
+                        <ellipse cx="100" cy="140" rx="15" ry="8" fill="#fff" stroke="#CD5C5C" stroke-width="2"/>
+                        <g class="paw-group cat-paw-lift left-paw-group">
+                            <ellipse cx="60" cy="125" rx="12" ry="15" fill="#fff" stroke="#CD5C5C" stroke-width="2"/>
+                        </g>
+                        <g class="paw-group cat-paw-lift right-paw-group">
+                             <ellipse cx="80" cy="125" rx="12" ry="15" fill="#fff" stroke="#CD5C5C" stroke-width="2"/>
+                        </g>
+                        <circle cx="70" cy="60" r="35" fill="#FFA07A" stroke="#CD5C5C" stroke-width="2"/>
+                        <path d="M45 35 L35 5 L65 30 Z" fill="#FFA07A" stroke="#CD5C5C" stroke-width="2"/>
+                        <path d="M95 35 L105 5 L75 30 Z" fill="#FFA07A" stroke="#CD5C5C" stroke-width="2"/>
+                        <circle cx="58" cy="55" r="3" fill="#333" /><circle cx="82" cy="55" r="3" fill="#333" />
+                        <path d="M70 65 L65 75 L75 75 Z" fill="#FF6B6B"/>
+                        <path d="M50 65 L30 60 M50 70 L30 70 M50 75 L30 80" stroke="#333" stroke-width="1" />
+                        <path d="M90 65 L110 60 M90 70 L110 70 M90 75 L110 80" stroke="#333" stroke-width="1" />
+                    </svg>
+                </div>
+
+                <div class="animal" id="dog">
+                    <div class="speech-bubble">你真棒！</div>
+                    <svg viewBox="0 0 160 150">
+                        <path d="M130 80 Q150 70 155 50" fill="none" stroke="#DEB887" stroke-width="6" stroke-linecap="round">
+                            <animate attributeName="d" values="M130 80 Q150 70 155 50; M130 80 Q150 90 155 70; M130 80 Q150 70 155 50" dur="1s" repeatCount="indefinite"/>
+                        </path>
+                        <rect x="40" y="65" width="90" height="55" rx="25" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                        <rect x="50" y="110" width="18" height="30" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                        <rect x="100" y="110" width="18" height="30" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                        <g class="paw-group left-paw-group">
+                            <rect x="45" y="90" width="18" height="35" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                        </g>
+                        <g class="paw-group right-paw-group">
+                            <rect x="95" y="90" width="18" height="35" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                        </g>
+                        <circle cx="50" cy="50" r="30" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                        <path d="M30 30 Q10 50 25 70 L35 45 Z" fill="#8B4513" stroke="#8B4513" stroke-width="2"/>
+                        <path d="M70 30 Q90 50 75 70 L65 45 Z" fill="#8B4513" stroke="#8B4513" stroke-width="2"/>
+                        <circle cx="40" cy="45" r="4" fill="#333" /><circle cx="60" cy="45" r="4" fill="#333" />
+                        <ellipse cx="50" cy="55" rx="7" ry="5" fill="#333" />
+                        <path d="M50 60 Q50 68 45 70 M50 60 Q50 68 55 70" stroke="#333" stroke-width="2" fill="none"/>
+                    </svg>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 逻辑控制 (无需大改，主要是配合新的CSS类) ---
+        const questionBox = document.getElementById('questionBox');
+        const optionsBox = document.getElementById('optionsBox');
+        const returnBtn = document.getElementById('returnBtn');
+        const animals = document.querySelectorAll('.animal');
+        let fireworksInterval = null;
+
+        function handleChoice(isYes) {
+            optionsBox.classList.add('hidden');
+            questionBox.style.opacity = "0"; // 隐藏问题
+
+            if (isYes) {
+                // --- 选了“是”：鼓掌 + 烟花 ---
+                animals.forEach((animal, index) => {
+                    animal.classList.add('clapping');
+                    showBubble(animal, "你真棒！", index * 200);
+                });
+                startFireworks();
+            } else {
+                // --- 选了“否”：加油(举手) ---
+                animals.forEach((animal, index) => {
+                    animal.classList.add('thumbs-up');
+                    showBubble(animal, "加油！现在开始做一件事吧", index * 200);
+                });
+            }
+
+            setTimeout(() => {
+                returnBtn.classList.add('show');
+            }, 3000);
+        }
+
+        function showBubble(animal, text, delay) {
+            const bubble = animal.querySelector('.speech-bubble');
+            bubble.innerText = text;
+            // 对于长文本，取消固定宽度让它自适应，对于短文本则恢复默认
+            bubble.style.width = text.length > 5 ? "max-content" : "auto"; 
+            setTimeout(() => bubble.classList.add('show'), delay);
+        }
+
+        function resetState() {
+            stopFireworks();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            questionBox.style.opacity = "1";
+            optionsBox.classList.remove('hidden');
+            returnBtn.classList.remove('show');
+            animals.forEach(animal => {
+                animal.classList.remove('clapping', 'thumbs-up');
+                animal.querySelector('.speech-bubble').classList.remove('show');
+            });
+        }
+
+
+        // --- 烟花系统 (保持不变) ---
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y; this.color = color;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 2; // 稍微加快速度
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.02 + 0.015;
+                this.gravity = 0.1;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                this.vy += this.gravity; this.alpha -= this.decay;
+            }
+            draw() {
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 4, 0, Math.PI * 2); // 稍微变大粒子
+                ctx.fill();
+            }
+        }
+
+        function createFirework() {
+            // 烟花位置限制在屏幕上半部分
+            const x = Math.random() * canvas.width * 0.8 + canvas.width * 0.1;
+            const y = Math.random() * (canvas.height * 0.4) + 50; 
+            const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#FF69B4', '#BA55D3', '#00FF7F'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            for (let i = 0; i < 40; i++) { // 增加粒子数量
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        function loopFireworks() {
+            // 使用较浅的清除色，增加拖尾感
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.globalCompositeOperation = 'source-over';
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].alpha <= 0) particles.splice(i, 1);
+            }
+            requestAnimationFrame(loopFireworks);
+        }
+        loopFireworks();
+
+        function startFireworks() {
+            // 立即绽放6朵
+            for(let i=0; i<6; i++) setTimeout(createFirework, i * 50);
+            // 之后每秒6朵
+            fireworksInterval = setInterval(() => {
+                for(let i=0; i<6; i++) setTimeout(createFirework, i * 80);
+            }, 1000);
+        }
+
+        function stopFireworks() {
+            clearInterval(fireworksInterval);
+            // 不立即清空粒子，让它们自然消失
+        }
+    </script>
+</body>
+</html>
