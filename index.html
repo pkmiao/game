@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>快乐动物乐园 - 互动升级版</title>
+    <title>动物乐园</title>
     <style>
         /* --- 基础设置 --- */
         body, html {
@@ -48,178 +48,74 @@
             width: 100px;
             height: 100px;
             animation: spin 60s linear infinite;
-            cursor: pointer; /* 提示可交互 */
-            transition: animation-duration 0.5s; /* 平滑过渡转速 */
+            cursor: pointer;
+            transition: animation-duration 0.5s;
         }
         
-        /* 2. 鼠标移动到太阳身上时，转速提高3倍 (60s -> 20s) */
+        /* 鼠标移动到太阳身上时，转速提高3倍 */
         .sun:hover {
             animation-duration: 20s;
         }
         
-        /* 装饰性云朵 */
-        .deco-cloud {
-            position: absolute;
-            background: #fff;
-            border-radius: 50px;
-            opacity: 0.9;
-            animation: float 10s ease-in-out infinite alternate;
-        }
-        .deco-cloud::after, .deco-cloud::before {
-            content: '';
-            position: absolute;
-            background: inherit;
-            border-radius: 50%;
-        }
-        /* 彩色云朵配置 */
+        /* 装饰性云朵 (省略部分重复CSS) */
+        .deco-cloud { position: absolute; background: #fff; border-radius: 50px; opacity: 0.9; animation: float 10s ease-in-out infinite alternate; }
+        .deco-cloud::after, .deco-cloud::before { content: ''; position: absolute; background: inherit; border-radius: 50%; }
         .c1 { top: 50px; left: 10%; width: 100px; height: 40px; background: #FFD1DC; }
         .c1::after { width: 50px; height: 50px; top: -25px; left: 15px; }
         .c1::before { width: 40px; height: 40px; top: -15px; left: 50px; }
-
         .c2 { top: 120px; left: 80%; width: 120px; height: 50px; background: #E0BBE4; animation-delay: 2s; }
         .c2::after { width: 60px; height: 60px; top: -30px; left: 20px; }
         .c2::before { width: 50px; height: 50px; top: -20px; left: 60px; }
-
         .c3 { top: 80px; left: 40%; width: 90px; height: 35px; background: #FFFACD; animation-delay: 4s; }
         .c3::after { width: 45px; height: 45px; top: -20px; left: 10px; }
         .c3::before { width: 35px; height: 35px; top: -10px; left: 45px; }
 
         /* --- 场景容器 --- */
         .scene {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            height: 60%;
-            display: flex;
-            justify-content: center;
-            align-items: flex-end;
-            z-index: 20;
+            position: absolute; bottom: 0; width: 100%; height: 60%; display: flex; justify-content: center; align-items: flex-end; z-index: 20;
         }
 
         /* 上半圆草坪 */
         .lawn {
-            width: 130vw;
-            height: 45vh;
-            background: #7CFC00;
-            border-radius: 50% 50% 0 0;
-            position: absolute;
-            bottom: -60px;
-            box-shadow: inset 0 20px 50px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            padding-top: 30px;
+            width: 130vw; height: 45vh; background: #7CFC00; border-radius: 50% 50% 0 0; position: absolute; bottom: -60px; box-shadow: inset 0 20px 50px rgba(0,0,0,0.1); display: flex; justify-content: center; align-items: flex-start; padding-top: 30px;
         }
 
         /* --- 动物容器 --- */
         .animals-wrapper {
-            position: absolute;
-            top: -150px; 
-            display: flex;
-            gap: 40px;
-            align-items: flex-end;
+            position: absolute; top: -150px; display: flex; gap: 40px; align-items: flex-end;
         }
 
         .animal {
-            width: 140px;
-            height: 160px;
-            /* 允许相对定位调整 */
-            position: relative;
-            transition: transform 0.3s;
-            cursor: pointer; /* 提示可交互 */
+            width: 140px; height: 160px; position: relative; transition: transform 0.3s; cursor: pointer; 
         }
 
-        /* 1. 位置调整：
-           猪：右移50px (left: 50px), 下移150px (top: 150px)
-           狗：左移50px (right: 50px), 下移150px (top: 150px)
-           使用 ID 选择器覆盖默认位置
-        */
-        #pig {
-            left: 50px;
-            top: 150px;
-            z-index: 10; /* 确保不被草坪遮挡太多，如果需要 */
-        }
+        /* 位置调整 */
+        #pig { left: 50px; top: 150px; z-index: 10; }
+        #dog { right: 50px; top: 150px; z-index: 10; }
 
-        #dog {
-            right: 50px;
-            top: 150px;
-            z-index: 10;
-        }
-
-        /* 4. 鼠标移动到动物身上时跳跃 */
-        .animal:hover {
-            animation: jump 0.5s infinite ease-in-out;
-        }
-
-        /* 动物的SVG样式 */
-        .animal svg {
-            width: 100%;
-            height: 100%;
-            overflow: visible;
-        }
+        /* 鼠标移动到动物身上时跳跃 */
+        .animal:hover { animation: jump 0.5s infinite ease-in-out; }
 
         /* --- 动物内部动画 (鼓掌/加油) --- */
         .paw-group { transform-box: fill-box; transition: all 0.3s ease-in-out; }
-
         .clapping .left-paw-group { transform-origin: center top; animation: clapLeftNew 0.4s infinite alternate; }
         .clapping .right-paw-group { transform-origin: center top; animation: clapRightNew 0.4s infinite alternate; }
-
         .thumbs-up .left-paw-group { transform-origin: center bottom; transform: translateY(-20px) rotate(-30deg); }
         .thumbs-up .right-paw-group { transform-origin: center bottom; transform: translateY(-20px) rotate(30deg); }
         .thumbs-up .cat-paw-lift { transform: translateY(-15px); }
 
         /* 动物说话气泡 */
         .speech-bubble {
-            position: absolute;
-            top: -50px;
-            left: 50%;
-            transform: translateX(-50%) scale(0);
-            background: #fff;
-            padding: 12px 18px;
-            border-radius: 25px;
-            font-weight: bold;
-            color: #333;
-            white-space: nowrap;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-            z-index: 30; 
+            position: absolute; top: -50px; left: 50%; transform: translateX(-50%) scale(0); background: #fff; padding: 12px 18px; border-radius: 25px; font-weight: bold; color: #333; white-space: nowrap; box-shadow: 0 5px 15px rgba(0,0,0,0.15); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 30; 
         }
-        .speech-bubble::after {
-            content: ''; position: absolute; bottom: -10px; left: 50%; margin-left: -10px; border-width: 10px 10px 0; border-style: solid; border-color: #fff transparent;
-        }
+        .speech-bubble::after { content: ''; position: absolute; bottom: -10px; left: 50%; margin-left: -10px; border-width: 10px 10px 0; border-style: solid; border-color: #fff transparent; }
         .speech-bubble.show { transform: translateX(-50%) scale(1); }
 
-        /* --- UI 区域 --- */
-        .ui-layer {
-            position: absolute;
-            top: 15%;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            z-index: 50;
-        }
-
-        .question-box {
-            background: #FF6B6B;
-            color: white;
-            padding: 20px 40px;
-            border-radius: 20px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            box-shadow: 0 10px 0 #C44D4D;
-            margin-bottom: 40px;
-            animation: popIn 0.5s;
-            max-width: 80%;
-            text-align: center;
-            transition: opacity 0.3s;
-        }
-
+        /* --- UI 区域 (省略部分重复CSS) --- */
+        .ui-layer { position: absolute; top: 15%; width: 100%; display: flex; flex-direction: column; align-items: center; z-index: 50; }
+        .question-box { background: #FF6B6B; color: white; padding: 20px 40px; border-radius: 20px; font-size: 1.5rem; font-weight: bold; box-shadow: 0 10px 0 #C44D4D; margin-bottom: 40px; animation: popIn 0.5s; max-width: 80%; text-align: center; transition: opacity 0.3s; }
         .options { display: flex; gap: 50px; }
-
-        .cloud-btn {
-            position: relative; width: 120px; height: 70px; background: #fff; border: none; cursor: pointer; font-size: 1.2rem; font-weight: bold; color: #555; z-index: 10; border-radius: 50px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
+        .cloud-btn { position: relative; width: 120px; height: 70px; background: #fff; border: none; cursor: pointer; font-size: 1.2rem; font-weight: bold; color: #555; z-index: 10; border-radius: 50px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         .cloud-btn::before { content: ""; position: absolute; top: -20px; left: 20px; width: 40px; height: 40px; background: inherit; border-radius: 50%; }
         .cloud-btn::after { content: ""; position: absolute; top: -30px; right: 20px; width: 50px; height: 50px; background: inherit; border-radius: 50%; }
         .btn-yes { background: #4ECDC4; color: white; } .btn-yes::before, .btn-yes::after { background: #4ECDC4; }
@@ -227,13 +123,10 @@
         .cloud-btn:active { transform: scale(0.95); } .cloud-btn:hover { transform: translateY(-5px); }
 
         /* 返回按钮 */
-        .return-btn {
-            position: fixed;
-            bottom: 150px; /* 之前要求的上移位置 */
-            width: 60px; height: 60px; background: #FFD700; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 5px 0 #DAA520; opacity: 0; visibility: hidden; transition: opacity 0.5s, transform 0.2s; z-index: 60;
-        }
+        .return-btn { position: fixed; bottom: 150px; width: 60px; height: 60px; background: #FFD700; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 5px 0 #DAA520; opacity: 0; visibility: hidden; transition: opacity 0.5s, transform 0.2s; z-index: 60; }
         .return-btn.show { opacity: 1; visibility: visible; }
-        .return-btn svg { width: 30px; height: 30px; fill: white; }
+        /* 返回按钮 SVG 颜色已在 HTML 中修改为 fill="white" */
+        .return-btn svg { width: 30px; height: 30px; } /* fill 属性已在内联样式中设置 */
         .return-btn:active { box-shadow: 0 2px 0 #DAA520; transform: translateY(3px); }
 
         /* --- 动画定义 --- */
@@ -242,12 +135,7 @@
         @keyframes popIn { 0% { transform: scale(0); } 80% { transform: scale(1.1); } 100% { transform: scale(1); } }
         @keyframes clapLeftNew { 0% { transform: rotate(0deg); } 100% { transform: rotate(15deg) translateX(5px); } }
         @keyframes clapRightNew { 0% { transform: rotate(0deg); } 100% { transform: rotate(-15deg) translateX(-5px); } }
-
-        /* 4. 跳跃动画：每秒2次，即周期0.5s */
-        @keyframes jump {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-30px); }
-        }
+        @keyframes jump { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-30px); } }
 
         .hidden { display: none !important; }
 
@@ -283,7 +171,7 @@
     </div>
 
     <div class="return-btn" id="returnBtn" onclick="resetState()">
-        <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+        <svg viewBox="0 0 24 24" fill="white"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
     </div>
 
     <div class="scene">
@@ -297,12 +185,8 @@
                         <rect x="90" y="110" width="15" height="25" rx="5" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
                         <ellipse cx="75" cy="90" rx="55" ry="40" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
                         <path d="M130 90 Q140 80 135 75 Q130 70 135 65" fill="none" stroke="#FF69B4" stroke-width="3" stroke-linecap="round"/>
-                        <g class="paw-group left-paw-group">
-                             <rect x="35" y="95" width="15" height="30" rx="5" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
-                        </g>
-                        <g class="paw-group right-paw-group">
-                             <rect x="100" y="95" width="15" height="30" rx="5" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
-                        </g>
+                        <g class="paw-group left-paw-group"> <rect x="35" y="95" width="15" height="30" rx="5" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/> </g>
+                        <g class="paw-group right-paw-group"> <rect x="100" y="95" width="15" height="30" rx="5" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/> </g>
                         <circle cx="75" cy="60" r="35" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
                         <path d="M45 40 L35 25 L60 35 Z" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
                         <path d="M105 40 L115 25 L90 35 Z" fill="#FFB6C1" stroke="#FF69B4" stroke-width="2"/>
@@ -319,12 +203,8 @@
                         <ellipse cx="70" cy="110" rx="45" ry="35" fill="#FFA07A" stroke="#CD5C5C" stroke-width="2"/>
                         <ellipse cx="40" cy="140" rx="15" ry="8" fill="#fff" stroke="#CD5C5C" stroke-width="2"/>
                         <ellipse cx="100" cy="140" rx="15" ry="8" fill="#fff" stroke="#CD5C5C" stroke-width="2"/>
-                        <g class="paw-group cat-paw-lift left-paw-group">
-                            <ellipse cx="60" cy="125" rx="12" ry="15" fill="#fff" stroke="#CD5C5C" stroke-width="2"/>
-                        </g>
-                        <g class="paw-group cat-paw-lift right-paw-group">
-                             <ellipse cx="80" cy="125" rx="12" ry="15" fill="#fff" stroke="#CD5C5C" stroke-width="2"/>
-                        </g>
+                        <g class="paw-group cat-paw-lift left-paw-group"> <ellipse cx="60" cy="125" rx="12" ry="15" fill="#fff" stroke="#CD5C5C" stroke-width="2"/> </g>
+                        <g class="paw-group cat-paw-lift right-paw-group"> <ellipse cx="80" cy="125" rx="12" ry="15" fill="#fff" stroke="#CD5C5C" stroke-width="2"/> </g>
                         <circle cx="70" cy="60" r="35" fill="#FFA07A" stroke="#CD5C5C" stroke-width="2"/>
                         <path d="M45 35 L35 5 L65 30 Z" fill="#FFA07A" stroke="#CD5C5C" stroke-width="2"/>
                         <path d="M95 35 L105 5 L75 30 Z" fill="#FFA07A" stroke="#CD5C5C" stroke-width="2"/>
@@ -338,24 +218,28 @@
                 <div class="animal" id="dog">
                     <div class="speech-bubble">你真棒！</div>
                     <svg viewBox="0 0 160 150">
-                        <path d="M130 80 Q150 70 155 50" fill="none" stroke="#DEB887" stroke-width="6" stroke-linecap="round">
-                            <animate attributeName="d" values="M130 80 Q150 70 155 50; M130 80 Q150 90 155 70; M130 80 Q150 70 155 50" dur="1s" repeatCount="indefinite"/>
+                        <path d="M100 85 Q110 75 115 65" fill="none" stroke="#DEB887" stroke-width="6" stroke-linecap="round" transform="rotate(-5, 100, 85)">
+                            <animate attributeName="d" values="M100 85 Q110 75 115 65; M100 85 Q110 90 115 70; M100 85 Q110 75 115 65" dur="1s" repeatCount="indefinite"/>
                         </path>
-                        <rect x="40" y="65" width="90" height="55" rx="25" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
-                        <rect x="50" y="110" width="18" height="30" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
-                        <rect x="100" y="110" width="18" height="30" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                        
+                        <rect x="55" y="110" width="18" height="30" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2" opacity="0.8"/>
+                        <rect x="85" y="110" width="18" height="30" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2" opacity="0.8"/>
+                        
+                        <rect x="45" y="65" width="70" height="55" rx="25" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                        
                         <g class="paw-group left-paw-group">
-                            <rect x="45" y="90" width="18" height="35" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                            <rect x="55" y="90" width="18" height="35" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
                         </g>
                         <g class="paw-group right-paw-group">
-                            <rect x="95" y="90" width="18" height="35" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                            <rect x="85" y="90" width="18" height="35" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
                         </g>
-                        <circle cx="50" cy="50" r="30" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
-                        <path d="M30 30 Q10 50 25 70 L35 45 Z" fill="#8B4513" stroke="#8B4513" stroke-width="2"/>
-                        <path d="M70 30 Q90 50 75 70 L65 45 Z" fill="#8B4513" stroke="#8B4513" stroke-width="2"/>
-                        <circle cx="40" cy="45" r="4" fill="#333" /><circle cx="60" cy="45" r="4" fill="#333" />
-                        <ellipse cx="50" cy="55" rx="7" ry="5" fill="#333" />
-                        <path d="M50 60 Q50 68 45 70 M50 60 Q50 68 55 70" stroke="#333" stroke-width="2" fill="none"/>
+                        
+                        <circle cx="80" cy="50" r="30" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                        <path d="M60 30 Q40 50 55 70 L65 45 Z" fill="#8B4513" stroke="#8B4513" stroke-width="2"/>
+                        <path d="M100 30 Q120 50 105 70 L95 45 Z" fill="#8B4513" stroke="#8B4513" stroke-width="2"/>
+                        <circle cx="70" cy="45" r="4" fill="#333" /><circle cx="90" cy="45" r="4" fill="#333" />
+                        <ellipse cx="80" cy="55" rx="7" ry="5" fill="#333" />
+                        <path d="M80 60 Q80 68 75 70 M80 60 Q80 68 85 70" stroke="#333" stroke-width="2" fill="none"/>
                     </svg>
                 </div>
 
@@ -364,6 +248,7 @@
     </div>
 
     <script>
+        // --- 逻辑控制 (保持不变) ---
         const questionBox = document.getElementById('questionBox');
         const optionsBox = document.getElementById('optionsBox');
         const returnBtn = document.getElementById('returnBtn');
@@ -411,7 +296,7 @@
             });
         }
 
-        // --- 烟花系统 ---
+        // --- 烟花系统 (保持不变) ---
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         let particles = [];
@@ -473,7 +358,7 @@
         loopFireworks();
 
         function startFireworks() {
-            // 3. 烟花频率改为每秒4次
+            // 烟花频率：每秒4次
             for(let i=0; i<4; i++) setTimeout(createFirework, i * 50);
             fireworksInterval = setInterval(() => {
                 for(let i=0; i<4; i++) setTimeout(createFirework, i * 100);
