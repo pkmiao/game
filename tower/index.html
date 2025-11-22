@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>都市摩天楼 - Tower Stack</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a2e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: white;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 30px rgba(0,0,0,0.6);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background: linear-gradient(to bottom, #0f0c29 0%, #302b63 50%, #24243e 100%);
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        #score {
+            font-size: 56px;
+            font-weight: bold;
+            margin-top: 40px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            opacity: 0.9;
+            z-index: 10;
+        }
+
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 25px 50px;
+            border-radius: 12px;
+            pointer-events: auto;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        h1 { margin: 0 0 10px 0; font-size: 28px; color: #ff00de; letter-spacing: 1px; }
+        p { margin: 5px 0 25px 0; color: #ccc; font-size: 16px; }
+        
+        button {
+            background: linear-gradient(45deg, #ff00de, #00d4ff);
+            border: none;
+            padding: 12px 30px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: transform 0.1s, filter 0.2s;
+            outline: none;
+        }
+
+        button:hover { filter: brightness(1.1); }
+        button:active { transform: scale(0.95); }
+        .hidden { display: none !important; }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        
+        <div id="ui-layer">
+            <div id="score">0</div>
+            
+            <div id="start-screen">
+                <h1>都市摩天楼</h1>
+                <p>建设通往天际的高塔</p>
+                <button id="start-btn">开始建造</button>
+            </div>
+
+            <div id="game-over-screen" class="hidden">
+                <h1>工程结束</h1>
+                <p>最终楼层: <span id="final-score">0</span></p>
+                <button id="restart-btn">重新施工</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // --- 游戏配置 ---
+    const CONFIG = {
+        blockHeight: 35,
+        initialWidth: 220,
+        initialSpeed: 2.0, // 修改：速度降为 2.0 (原为 4.0)
+        colorSpeed: 8,
+        cameraSmoothness: 0.08
+    };
+
+    // --- 游戏状态 ---
+    let state = {
+        blocks: [],
+        currentBlock: null,
+        score: 0,
+        mode: 'start',
+        cameraY: 0,
+        hue: 0
+    };
+
+    // --- 类定义 ---
+    class Block {
+        constructor(x, y, width, speed, direction, hue) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = CONFIG.blockHeight;
+            this.color = `hsl(${hue}, 70%, 60%)`;
+            this.speed = speed;
+            this.direction = direction; 
+            this.hue = hue;
+        }
+
+        update() {
+            this.x += this.speed * this.direction;
+            if (this.x + this.width > canvas.width) {
+                this.direction = -1;
+                this.x = canvas.width - this.width;
+            } else if (this.x < 0) {
+                this.direction = 1;
+                this.x = 0;
+            }
+        }
+
+        draw(offsetY) {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y + offsetY, this.width, this.height);
+            
+            // 顶部高光
+            ctx.fillStyle = `hsl(${this.hue}, 70%, 75%)`;
+            ctx.fillRect(this.x, this.y + offsetY, this.width, 6); 
+            
+            // 右侧阴影
+            ctx.fillStyle = `hsl(${this.hue}, 70%, 40%)`;
+            ctx.fillRect(this.x + this.width - 6, this.y + offsetY, 6, this.height);
+        }
+    }
+
+    // --- 核心逻辑 ---
+
+    function initGame() {
+        state.score = 0;
+        state.blocks = [];
+        state.hue = 200;
+        state.mode = 'playing';
+        
+        document.getElementById('score').innerText = state.score;
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('game-over-screen').classList.add('hidden');
+
+        // 初始化基座
+        const startY = canvas.height - 150;
+        
+        const baseBlock = new Block(
+            (canvas.width - CONFIG.initialWidth) / 2, 
+            startY, 
+            CONFIG.initialWidth, 
+            0, 
+            0, 
+            state.hue
+        );
+        state.blocks.push(baseBlock);
+
+        state.cameraY = 0;
+
+        spawnNextBlock();
+        loop();
+    }
+
+    function spawnNextBlock() {
+        const prevBlock = state.blocks[state.blocks.length - 1];
+        state.hue += CONFIG.colorSpeed;
+        
+        // 保持恒定速度
+        const currentSpeed = CONFIG.initialSpeed;
+
+        const newY = prevBlock.y - CONFIG.blockHeight;
+        
+        const direction = Math.random() > 0.5 ? 1 : -1;
+        const startX = direction === 1 ? -prevBlock.width : canvas.width;
+
+        state.currentBlock = new Block(
+            startX, 
+            newY, 
+            prevBlock.width, 
+            currentSpeed, 
+            direction, 
+            state.hue
+        );
+    }
+
+    function placeBlock() {
+        if (state.mode !== 'playing') return;
+
+        const current = state.currentBlock;
+        const prev = state.blocks[state.blocks.length - 1];
+
+        const dist = current.x - prev.x;
+        const absDist = Math.abs(dist);
+
+        // 失败判定
+        if (absDist >= current.width) {
+            gameOver();
+            return;
+        }
+
+        // 切割逻辑
+        let newWidth = current.width;
+        let newX = current.x;
+
+        if (absDist < 3) {
+            newX = prev.x;
+            newWidth = prev.width;
+            playEffect('perfect');
+        } else {
+            newWidth = current.width - absDist;
+            if (dist > 0) {
+                newX = current.x; 
+            } else {
+                newX = prev.x;
+            }
+        }
+
+        current.x = newX;
+        current.width = newWidth;
+        current.speed = 0;
+
+        state.blocks.push(current);
+        state.score++;
+        document.getElementById('score').innerText = state.score;
+
+        spawnNextBlock();
+    }
+
+    function gameOver() {
+        state.mode = 'gameover';
+        document.getElementById('final-score').innerText = state.score;
+        document.getElementById('game-over-screen').classList.remove('hidden');
+    }
+
+    // --- 绘制辅助 ---
+
+    function drawGround(offsetY) {
+        if (state.blocks.length === 0) return;
+        const base = state.blocks[0];
+        
+        const groundLevel = base.y + base.height + offsetY;
+        
+        if (groundLevel > canvas.height) return;
+
+        // 草地
+        ctx.fillStyle = '#68bb59';
+        ctx.fillRect(0, groundLevel, canvas.width, 20);
+        
+        // 泥土
+        ctx.fillStyle = '#5d4037';
+        ctx.fillRect(0, groundLevel + 20, canvas.width, canvas.height);
+
+        // 纹理
+        ctx.fillStyle = '#4e342e';
+        for(let i=0; i<10; i++) {
+             ctx.fillRect(
+                 (i * 70) % canvas.width, 
+                 groundLevel + 20 + 10 + (i*5), 
+                 10, 5
+             );
+        }
+    }
+
+    function drawBackground() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        for(let i=0; i<30; i++) {
+            const parallaxY = (i * 40 + state.cameraY * 0.2) % canvas.height;
+            const x = (i * 117) % canvas.width;
+            ctx.beginPath();
+            ctx.arc(x, parallaxY, Math.random() * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function loop() {
+        if (state.mode !== 'playing' && state.mode !== 'gameover') return;
+
+        if (state.mode === 'playing') {
+            state.currentBlock.update();
+        }
+
+        const screenMiddle = canvas.height / 2;
+        let activeBlockY = 0;
+        
+        if (state.currentBlock) {
+            activeBlockY = state.currentBlock.y;
+        } else if (state.blocks.length > 0) {
+            activeBlockY = state.blocks[state.blocks.length-1].y;
+        }
+
+        let targetOffset = screenMiddle - activeBlockY;
+        state.cameraY += (targetOffset - state.cameraY) * CONFIG.cameraSmoothness;
+
+        drawBackground();
+        drawGround(state.cameraY);
+        state.blocks.forEach(block => block.draw(state.cameraY));
+        
+        if (state.mode === 'playing' && state.currentBlock) {
+            state.currentBlock.draw(state.cameraY);
+        }
+
+        requestAnimationFrame(loop);
+    }
+
+    function playEffect(type) {
+        const flash = document.createElement('div');
+        flash.style.position = 'absolute';
+        flash.style.top = 0;
+        flash.style.left = 0;
+        flash.style.width = '100%';
+        flash.style.height = '100%';
+        flash.style.background = 'white';
+        flash.style.opacity = '0.4';
+        flash.style.pointerEvents = 'none';
+        document.getElementById('game-container').appendChild(flash);
+        
+        let opacity = 0.4;
+        const anim = setInterval(() => {
+            opacity -= 0.05;
+            flash.style.opacity = opacity;
+            if (opacity <= 0) {
+                clearInterval(anim);
+                flash.remove();
+            }
+        }, 16);
+    }
+
+    // --- 事件监听 ---
+    const action = (e) => {
+        if(e.type === 'touchstart') e.preventDefault(); 
+        if (state.mode === 'playing') {
+            placeBlock();
+        } 
+    };
+
+    canvas.addEventListener('mousedown', action);
+    canvas.addEventListener('touchstart', action, {passive: false});
+    
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            if (state.mode === 'playing') {
+                placeBlock();
+            } else if (state.mode === 'start') {
+                initGame();
+            } else if (state.mode === 'gameover') {
+                // 修改：空格键在游戏结束时也触发重载
+                window.location.reload();
+            }
+        }
+    });
+
+    document.getElementById('start-btn').addEventListener('click', initGame);
+    
+    // --- 修改：点击重新施工按钮刷新页面 ---
+    document.getElementById('restart-btn').addEventListener('click', () => {
+        window.location.reload();
+    });
+
+</script>
+</body>
+</html>
