@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>奶龙大冒险</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #game-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: linear-gradient(to bottom, #87CEEB, #E0F7FA);
+        }
+        
+        #background {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            background-size: cover;
+            background-position: center;
+            transition: background-image 1s ease;
+        }
+        
+        #characters {
+            position: absolute;
+            bottom: 45%; /* 上移200px */
+            width: 100%;
+            height: 45%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+        
+        .character {
+            position: absolute;
+            bottom: 0;
+            height: 200px;
+            width: auto;
+            transition: all 0.5s ease;
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        
+        .character.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        #dialogue-box {
+            position: absolute;
+            bottom: 25%; /* 上移200px */
+            width: 90%;
+            left: 5%;
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 3px solid #FF9800;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        #dialogue-box.show {
+            transform: translateY(0);
+        }
+        
+        #name {
+            font-weight: bold;
+            color: #FF5722;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #FFC107;
+        }
+        
+        #text {
+            font-size: 1.1em;
+            line-height: 1.5;
+            min-height: 60px;
+        }
+        
+        #next-btn {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            background-color: #FF9800;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s;
+        }
+        
+        #next-btn:hover {
+            background-color: #F57C00;
+        }
+        
+        #title-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #FFC107, #FF9800);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+        
+        #title {
+            font-size: 3em;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+        }
+        
+        #start-btn {
+            background-color: white;
+            color: #FF9800;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.2em;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        #start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* 像素风格调整 */
+        .pixelated {
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: pixelated;
+        }
+        
+        /* 添加一些装饰元素 */
+        .cloud {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            opacity: 0.8;
+        }
+        
+        .cloud-1 {
+            width: 100px;
+            height: 40px;
+            top: 10%;
+            left: 10%;
+        }
+        
+        .cloud-2 {
+            width: 80px;
+            height: 30px;
+            top: 15%;
+            right: 15%;
+        }
+        
+        .cloud-3 {
+            width: 120px;
+            height: 45px;
+            top: 20%;
+            left: 20%;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="background"></div>
+        
+        <!-- 装饰云朵 -->
+        <div class="cloud cloud-1"></div>
+        <div class="cloud cloud-2"></div>
+        <div class="cloud cloud-3"></div>
+        
+        <div id="characters">
+            <div id="character1" class="character">
+                <!-- 奶龙SVG -->
+                <svg width="200" height="200" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+                    <!-- 身体 - 纯黄色 -->
+                    <ellipse cx="200" cy="260" rx="90" ry="100" fill="#FFEB3B" stroke="#FFC107" stroke-width="2"/>
+                    
+                    <!-- 肚子 - 纯白色 -->
+                    <ellipse cx="200" cy="270" rx="60" ry="70" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1"/>
+                    
+                    <!-- 头部 - 纯黄色 -->
+                    <ellipse cx="200" cy="150" rx="85" ry="90" fill="#FFEB3B" stroke="#FFC107" stroke-width="2"/>
+                    
+                    <!-- 眼睛 - 白色眼白 -->
+                    <ellipse cx="170" cy="130" rx="22" ry="35" fill="#FFFFFF"/>
+                    <ellipse cx="230" cy="130" rx="22" ry="35" fill="#FFFFFF"/>
+                    
+                    <!-- 虹膜 - 墨绿色 -->
+                    <ellipse cx="170" cy="135" rx="15" ry="20" fill="#006400"/>
+                    <ellipse cx="230" cy="135" rx="15" ry="20" fill="#006400"/>
+                    
+                    <!-- 瞳孔 - 黑色 -->
+                    <ellipse cx="170" cy="135" rx="8" ry="12" fill="#000000"/>
+                    <ellipse cx="230" cy="135" rx="8" ry="12" fill="#000000"/>
+                    
+                    <!-- 嘴巴 -->
+                    <path d="M 175 180 Q 200 210 225 180" stroke="#FF5722" stroke-width="4" fill="none" stroke-linecap="round"/>
+                    
+                    <!-- 手臂 -->
+                    <ellipse cx="130" cy="220" rx="20" ry="35" fill="#FFEB3B" stroke="#FFC107" stroke-width="2"/>
+                    <ellipse cx="270" cy="220" rx="20" ry="35" fill="#FFEB3B" stroke="#FFC107" stroke-width="2"/>
+                    
+                    <!-- 腿 -->
+                    <ellipse cx="140" cy="350" rx="25" ry="25" fill="#FFEB3B" stroke="#FFC107" stroke-width="2"/>
+                    <ellipse cx="260" cy="350" rx="25" ry="25" fill="#FFEB3B" stroke="#FFC107" stroke-width="2"/>
+                </svg>
+            </div>
+            <div id="character2" class="character">
+                <!-- 小黄SVG -->
+                <svg width="200" height="200" viewBox="0 0 160 150" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M100 85 Q110 75 115 65" fill="none" stroke="#DEB887" stroke-width="6" stroke-linecap="round" transform="rotate(-5, 100, 85)">
+                        <animate attributeName="d" values="M100 85 Q110 75 115 65; M100 85 Q110 90 115 70; M100 85 Q110 75 115 65" dur="1s" repeatCount="indefinite"/>
+                    </path>
+                    
+                    <rect x="55" y="110" width="18" height="30" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2" opacity="0.8"/>
+                    <rect x="85" y="110" width="18" height="30" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2" opacity="0.8"/>
+                    
+                    <rect x="45" y="65" width="70" height="55" rx="25" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                    
+                    <g class="paw-group left-paw-group">
+                        <rect x="55" y="90" width="18" height="35" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                    </g>
+                    <g class="paw-group right-paw-group">
+                        <rect x="85" y="90" width="18" height="35" rx="8" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                    </g>
+                    
+                    <circle cx="80" cy="50" r="30" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                    <path d="M60 30 Q40 50 55 70 L65 45 Z" fill="#8B4513" stroke="#8B4513" stroke-width="2"/>
+                    <path d="M100 30 Q120 50 105 70 L95 45 Z" fill="#8B4513" stroke="#8B4513" stroke-width="2"/>
+                    <circle cx="70" cy="45" r="4" fill="#333" /><circle cx="90" cy="45" r="4" fill="#333" />
+                    <ellipse cx="80" cy="55" rx="7" ry="5" fill="#333" />
+                    <path d="M80 60 Q80 68 75 70 M80 60 Q80 68 85 70" stroke="#333" stroke-width="2" fill="none"/>
+                </svg>
+            </div>
+        </div>
+        
+        <div id="dialogue-box">
+            <div id="name">奶龙</div>
+            <div id="text">你好！我是奶龙，很高兴认识你！</div>
+            <button id="next-btn">继续</button>
+        </div>
+        
+        <div id="title-screen">
+            <h1 id="title">奶龙大冒险</h1>
+            <button id="start-btn">开始游戏</button>
+        </div>
+    </div>
+
+    <script>
+        // 游戏数据
+        const gameData = {
+            currentScene: 0,
+            scenes: [
+                {
+                    background: "linear-gradient(to bottom, #87CEEB, #E0F7FA)",
+                    characters: [
+                        { id: "character1", active: true, position: "center" }
+                    ],
+                    dialogue: [
+                        { name: "奶龙", text: "啊~又是一个美好的早晨！" },
+                        { name: "奶龙", text: "今天要去哪里冒险呢？" },
+                        { name: "奶龙", text: "听说森林深处有一片神奇的草莓田，那里的草莓特别甜！" }
+                    ]
+                },
+                {
+                    background: "linear-gradient(to bottom, #4CAF50, #8BC34A)",
+                    characters: [
+                        { id: "character1", active: true, position: "left" },
+                        { id: "character2", active: true, position: "right" }
+                    ],
+                    dialogue: [
+                        { name: "奶龙", text: "哇！这里就是传说中的草莓田吗？" },
+                        { name: "小黄", text: "嘿！你是谁？为什么在我的草莓田里？" },
+                        { name: "奶龙", text: "对不起，我只是听说这里的草莓特别好吃..." },
+                        { name: "小黄", text: "哈哈，开个玩笑啦！这些草莓我种了很多，你可以尝尝！" },
+                        { name: "奶龙", text: "真的吗？太感谢你了！" }
+                    ]
+                },
+                {
+                    background: "linear-gradient(to bottom, #FF9800, #FFC107)",
+                    characters: [
+                        { id: "character1", active: true, position: "center" },
+                        { id: "character2", active: true, position: "right" }
+                    ],
+                    dialogue: [
+                        { name: "奶龙", text: "这些草莓真的太好吃了！" },
+                        { name: "小黄", text: "对吧！我可是精心培育的！" },
+                        { name: "奶龙", text: "谢谢你让我品尝，我们可以做朋友吗？" },
+                        { name: "小黄", text: "当然可以！以后你可以经常来玩！" },
+                        { name: "奶龙", text: "太好了！今天真是美好的一天！" }
+                    ]
+                }
+            ]
+        };
+
+        // DOM元素
+        const titleScreen = document.getElementById('title-screen');
+        const startBtn = document.getElementById('start-btn');
+        const background = document.getElementById('background');
+        const characters = document.querySelectorAll('.character');
+        const dialogueBox = document.getElementById('dialogue-box');
+        const nameElement = document.getElementById('name');
+        const textElement = document.getElementById('text');
+        const nextBtn = document.getElementById('next-btn');
+
+        // 游戏状态
+        let currentDialogueIndex = 0;
+        let isDialogueActive = false;
+
+        // 初始化游戏
+        function initGame() {
+            // 隐藏标题屏幕
+            titleScreen.classList.add('hidden');
+            
+            // 显示对话框
+            dialogueBox.classList.add('show');
+            
+            // 加载第一个场景
+            loadScene(0);
+        }
+
+        // 加载场景
+        function loadScene(sceneIndex) {
+            const scene = gameData.scenes[sceneIndex];
+            
+            // 更新背景
+            background.style.background = scene.background;
+            
+            // 隐藏所有角色
+            characters.forEach(char => {
+                char.classList.remove('active');
+                char.style.left = '50%';
+                char.style.transform = 'translateX(-50%) scale(0.9)';
+            });
+            
+            // 显示场景中的角色
+            scene.characters.forEach(charData => {
+                const charElement = document.getElementById(charData.id);
+                if (charElement && charData.active) {
+                    charElement.classList.add('active');
+                    
+                    // 设置角色位置
+                    if (charData.position === 'left') {
+                        charElement.style.left = '25%';
+                    } else if (charData.position === 'right') {
+                        charElement.style.left = '75%';
+                    } else {
+                        charElement.style.left = '50%';
+                    }
+                }
+            });
+            
+            // 重置对话索引
+            currentDialogueIndex = 0;
+            
+            // 开始对话
+            startDialogue(sceneIndex);
+        }
+
+        // 开始对话
+        function startDialogue(sceneIndex) {
+            const scene = gameData.scenes[sceneIndex];
+            isDialogueActive = true;
+            
+            // 显示第一条对话
+            showDialogue(scene.dialogue[currentDialogueIndex]);
+        }
+
+        // 显示对话
+        function showDialogue(dialogue) {
+            nameElement.textContent = dialogue.name;
+            textElement.textContent = dialogue.text;
+        }
+
+        // 下一个对话或场景
+        function nextStep() {
+            const scene = gameData.scenes[gameData.currentScene];
+            
+            // 如果还有对话，显示下一个对话
+            if (currentDialogueIndex < scene.dialogue.length - 1) {
+                currentDialogueIndex++;
+                showDialogue(scene.dialogue[currentDialogueIndex]);
+            } 
+            // 否则，加载下一个场景
+            else if (gameData.currentScene < gameData.scenes.length - 1) {
+                gameData.currentScene++;
+                loadScene(gameData.currentScene);
+            }
+            // 游戏结束
+            else {
+                endGame();
+            }
+        }
+
+        // 游戏结束
+        function endGame() {
+            dialogueBox.innerHTML = `
+                <div id="name">游戏结束</div>
+                <div id="text">感谢您游玩奶龙大冒险！</div>
+                <button id="restart-btn">重新开始</button>
+            `;
+            
+            document.getElementById('restart-btn').addEventListener('click', () => {
+                location.reload(); // 直接重新载入网页
+            });
+        }
+
+        // 事件监听
+        startBtn.addEventListener('click', initGame);
+        nextBtn.addEventListener('click', nextStep);
+        
+        // 初始状态设置
+        dialogueBox.classList.remove('show');
+    </script>
+</body>
+</html>
