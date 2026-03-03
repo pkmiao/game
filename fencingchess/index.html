@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>击剑棋 (Fencing Chess)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { margin-bottom: 10px; }
+        .subtitle { font-size: 0.9em; color: #bdc3c7; margin-bottom: 20px; }
+        
+        #game-wrapper {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+        }
+
+        #canvas-container {
+            position: relative;
+        }
+
+        canvas {
+            background-color: #dcb35c;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 4px;
+            cursor: crosshair;
+        }
+
+        .panel {
+            background: #34495e;
+            padding: 20px;
+            border-radius: 8px;
+            width: 250px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .status-box {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #7f8c8d;
+        }
+
+        .turn-indicator {
+            font-weight: bold;
+            font-size: 1.4em;
+            color: #f1c40f;
+            margin-bottom: 10px;
+        }
+
+        .score {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 1.1em;
+        }
+
+        .rules {
+            font-size: 0.9em;
+            color: #bdc3c7;
+            line-height: 1.5;
+        }
+
+        .rules h3 { margin-top: 0; color: #ecf0f1; }
+
+        #game-over-msg {
+            display: none;
+            color: #e74c3c;
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-top: 15px;
+            text-align: center;
+            background: #fdf2e9;
+            padding: 10px;
+            border-radius: 4px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🗡️ 击剑棋</h1>
+    <div class="subtitle">来源于苹罐梦境的创新双人棋盘游戏</div>
+
+    <div id="game-wrapper">
+        <div id="canvas-container">
+            <canvas id="board" width="620" height="620"></canvas>
+        </div>
+
+        <div class="panel">
+            <div class="status-box">
+                <div class="turn-indicator" id="turn-text">当前回合: 黑子 (●)</div>
+                <div class="score">
+                    <span>黑方失子:</span>
+                    <span id="black-lost" style="font-weight: bold;">0</span>
+                </div>
+                <div class="score">
+                    <span>白方失子:</span>
+                    <span id="white-lost" style="font-weight: bold;">0</span>
+                </div>
+                <div id="game-over-msg"></div>
+            </div>
+
+            <div class="rules">
+                <h3>📜 规则说明</h3>
+                <p><strong>1. 成剑：</strong>四子连成直线，且第二子两侧各有一子（呈十字状，共6子）。</p>
+                <p><strong>2. 威力：</strong>形成剑后，仅<strong>剑刃所指的方向（较长一端）</strong>的敌方棋子将被移出棋盘！</p>
+                <p><strong>3. 封锁：</strong>被剑刃斩过的路线，敌方<strong>永远无法再次落子</strong>（红点提示），但己方不受影响。</p>
+                <p><strong>4. 胜负：</strong>只要有一方完全无法落子，游戏立即结束！被吃掉棋子少的一方获胜。</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('board');
+        const ctx = canvas.getContext('2d');
+        
+        const SIZE = 15;
+        const CELL_SIZE = 40;
+        const PADDING = 30;
+        
+        let board = Array(SIZE).fill(0).map(() => Array(SIZE).fill(0));
+        let banned = {
+            1: Array(SIZE).fill(0).map(() => Array(SIZE).fill(false)),
+            2: Array(SIZE).fill(0).map(() => Array(SIZE).fill(false))
+        };
+
+        let lostPieces = { 1: 0, 2: 0 };
+        let currentPlayer = 1;
+        let gameOver = false;
+
+        let hoverR = -1, hoverC = -1;
+
+        const directions = [
+            [0, 1], [0, -1], [1, 0], [-1, 0],
+            [1, 1], [-1, -1], [1, -1], [-1, 1]
+        ];
+
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < SIZE; i++) {
+                ctx.beginPath();
+                ctx.moveTo(PADDING, PADDING + i * CELL_SIZE);
+                ctx.lineTo(PADDING + (SIZE - 1) * CELL_SIZE, PADDING + i * CELL_SIZE);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(PADDING + i * CELL_SIZE, PADDING);
+                ctx.lineTo(PADDING + i * CELL_SIZE, PADDING + (SIZE - 1) * CELL_SIZE);
+                ctx.stroke();
+            }
+
+            const starPoints = [
+                [3, 3], [3, 11], [11, 3], [11, 11], [7, 7]
+            ];
+            ctx.fillStyle = '#000';
+            starPoints.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(PADDING + p[1] * CELL_SIZE, PADDING + p[0] * CELL_SIZE, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    if (banned[currentPlayer][r][c]) {
+                        ctx.fillStyle = 'rgba(231, 76, 60, 0.6)';
+                        ctx.beginPath();
+                        ctx.arc(PADDING + c * CELL_SIZE, PADDING + r * CELL_SIZE, 6, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    if (board[r][c] !== 0) {
+                        drawPiece(r, c, board[r][c], 1);
+                    }
+                }
+            }
+
+            if (!gameOver && hoverR >= 0 && hoverR < SIZE && hoverC >= 0 && hoverC < SIZE) {
+                if (board[hoverR][hoverC] === 0 && !banned[currentPlayer][hoverR][hoverC]) {
+                    drawPiece(hoverR, hoverC, currentPlayer, 0.4);
+                }
+            }
+        }
+
+        function drawPiece(r, c, player, alpha) {
+            const x = PADDING + c * CELL_SIZE;
+            const y = PADDING + r * CELL_SIZE;
+            
+            ctx.globalAlpha = alpha;
+            ctx.beginPath();
+            ctx.arc(x, y, 16, 0, Math.PI * 2);
+            
+            const gradient = ctx.createRadialGradient(x - 5, y - 5, 2, x, y, 16);
+            if (player === 1) {
+                gradient.addColorStop(0, '#666');
+                gradient.addColorStop(1, '#000');
+            } else {
+                gradient.addColorStop(0, '#fff');
+                gradient.addColorStop(1, '#ccc');
+            }
+            
+            ctx.fillStyle = gradient;
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            ctx.fill();
+            
+            ctx.shadowColor = 'transparent';
+            ctx.globalAlpha = 1;
+        }
+
+        function checkAndActivateSwords(newR, newC, player) {
+            for (let p1r = 0; p1r < SIZE; p1r++) {
+                for (let p1c = 0; p1c < SIZE; p1c++) {
+                    if (board[p1r][p1c] !== player) continue;
+
+                    for (let dir of directions) {
+                        let dr = dir[0], dc = dir[1];
+                        
+                        let p2r = p1r + dr, p2c = p1c + dc;
+                        let p3r = p2r + dr, p3c = p2c + dc;
+                        let p4r = p3r + dr, p4c = p3c + dc;
+
+                        let pr1 = -dc, pc1 = dr; 
+                        let pr2 = dc, pc2 = -dr;
+
+                        let c1r = p2r + pr1, c1c = p2c + pc1;
+                        let c2r = p2r + pr2, c2c = p2c + pc2;
+
+                        const isP = (r, c) => r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c] === player;
+
+                        if (isP(p2r, p2c) && isP(p3r, p3c) && isP(p4r, p4c) && isP(c1r, c1c) && isP(c2r, c2c)) {
+                            
+                            const swordPositions = [
+                                [p1r, p1c], [p2r, p2c], [p3r, p3c], [p4r, p4c], [c1r, c1c], [c2r, c2c]
+                            ];
+                            let includesNewPiece = false;
+                            for (let pos of swordPositions) {
+                                if (pos[0] === newR && pos[1] === newC) {
+                                    includesNewPiece = true;
+                                    break;
+                                }
+                            }
+
+                            if (includesNewPiece) {
+                                activateSword(p1r, p1c, dr, dc, player);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // === 核心修复：把整条直线的判定改成了从剑身向前发射的“射线” ===
+        function activateSword(p1r, p1c, dr, dc, player) {
+            let opponent = player === 1 ? 2 : 1;
+            
+            // P1 是剑柄底端。我们顺着 (dr, dc) 方向往前推，直到碰到棋盘边缘
+            let r = p1r + dr;
+            let c = p1c + dc;
+            
+            while (r >= 0 && r < SIZE && c >= 0 && c < SIZE) {
+                // 如果射线上有敌人的棋子，吃掉
+                if (board[r][c] === opponent) {
+                    board[r][c] = 0;
+                    lostPieces[opponent]++;
+                }
+                // 给射线经过的格子施加封锁（仅对敌人有效）
+                banned[opponent][r][c] = true;
+                
+                // 继续向剑刃方向步进
+                r += dr;
+                c += dc;
+            }
+        }
+
+        function checkValidMoves(player) {
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    if (board[r][c] === 0 && !banned[player][r][c]) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function updateUI() {
+            document.getElementById('black-lost').innerText = lostPieces[1];
+            document.getElementById('white-lost').innerText = lostPieces[2];
+            
+            const turnText = document.getElementById('turn-text');
+            if (!gameOver) {
+                turnText.innerText = currentPlayer === 1 ? "当前回合: 黑子 (●)" : "当前回合: 白子 (○)";
+                turnText.style.color = currentPlayer === 1 ? "#3498db" : "#bdc3c7";
+            }
+        }
+
+        function declareWinner(blockedPlayer) {
+            let msgBox = document.getElementById('game-over-msg');
+            msgBox.style.display = 'block';
+            
+            let blockedName = blockedPlayer === 1 ? "黑方" : "白方";
+            let msg = `🏁 游戏结束！<br><span style="font-size: 0.8em; font-weight: normal; color: #555;">(${blockedName}已被完全封锁，无法落子)</span><br><br>`;
+            
+            if (lostPieces[1] < lostPieces[2]) {
+                msg += "🏆 <b>黑方获胜！</b><br>失子更少";
+            } else if (lostPieces[2] < lostPieces[1]) {
+                msg += "🏆 <b>白方获胜！</b><br>失子更少";
+            } else {
+                msg += "🤝 <b>势均力敌！</b><br>平局";
+            }
+            msgBox.innerHTML = msg;
+        }
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            hoverC = Math.round((x - PADDING) / CELL_SIZE);
+            hoverR = Math.round((y - PADDING) / CELL_SIZE);
+            
+            drawBoard();
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            hoverR = -1; hoverC = -1;
+            drawBoard();
+        });
+
+        canvas.addEventListener('click', () => {
+            if (gameOver) return;
+
+            if (hoverR >= 0 && hoverR < SIZE && hoverC >= 0 && hoverC < SIZE) {
+                if (board[hoverR][hoverC] === 0 && !banned[currentPlayer][hoverR][hoverC]) {
+                    
+                    board[hoverR][hoverC] = currentPlayer;
+                    
+                    checkAndActivateSwords(hoverR, hoverC, currentPlayer);
+                    
+                    currentPlayer = currentPlayer === 1 ? 2 : 1;
+                    
+                    if (!checkValidMoves(currentPlayer)) {
+                        gameOver = true;
+                        declareWinner(currentPlayer);
+                    }
+
+                    updateUI();
+                    drawBoard();
+                }
+            }
+        });
+
+        drawBoard();
+        updateUI();
+
+    </script>
+</body>
+</html>
