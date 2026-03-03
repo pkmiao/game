@@ -47,10 +47,12 @@
         .game-card.bg-yellow-100 { background-color: rgba(254, 249, 195, 0.9); }
         .game-card.bg-blue-100 { background-color: rgba(219, 234, 254, 0.9); }
         .game-card.bg-pink-100 { background-color: rgba(252, 231, 243, 0.9); }
+        .game-card.bg-green-100 { background-color: rgba(220, 252, 231, 0.9); } /* 新增绿色背景 */
         
         .game-card.bg-yellow-100:hover { background-color: rgba(254, 240, 138, 0.95); }
         .game-card.bg-blue-100:hover { background-color: rgba(191, 219, 254, 0.95); }
         .game-card.bg-pink-100:hover { background-color: rgba(251, 207, 232, 0.95); }
+        .game-card.bg-green-100:hover { background-color: rgba(187, 247, 208, 0.95); } /* 新增绿色悬浮背景 */
 
         @media (max-width: 640px) {
             .game-card { padding: 1.5rem; }
@@ -129,7 +131,7 @@
             欢迎来到pkmiao的游戏站点，你需要什么？
         </h1>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             
             <a href="https://game.pkmiao.com/animal/" target="_blank" class="game-card block p-6 rounded-3xl border-4 border-black bg-yellow-100 shadow-xl hover:bg-yellow-200 transform hover:rotate-1 transition-all duration-400 ease-in-out cursor-pointer group flex flex-col justify-between h-full">
                 <div class="flex flex-col items-center flex-grow justify-center">
@@ -158,9 +160,17 @@
                 <div class="mt-6 text-base font-bold text-gray-900 group-hover:text-purple-600 transition-colors">立即出发 →</div>
             </a>
 
+            <a href="https://game.pkmiao.com/fencingchess/" target="_blank" class="game-card block p-6 rounded-3xl border-4 border-black bg-green-100 shadow-xl hover:bg-green-200 transform hover:-rotate-1 transition-all duration-400 ease-in-out cursor-pointer group flex flex-col justify-between h-full">
+                <div class="flex flex-col items-center flex-grow justify-center">
+                    <div class="text-6xl mb-4 transition-transform group-hover:scale-110 group-hover:-rotate-12">🤺</div>
+                    <h2 class="text-2xl sm:text-3xl font-black mb-3 text-black uppercase">击剑棋</h2>
+                    <p class="text-base sm:text-lg text-gray-700 font-semibold">创新双人棋盘游戏</p>
+                </div>
+                <div class="mt-6 text-base font-bold text-gray-900 group-hover:text-blue-600 transition-colors">开始对弈 →</div>
+            </a>
+
         </div>
     </div>
 
 </body>
 </html>
-
