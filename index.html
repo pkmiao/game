@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>欢迎来到pkmiao的游戏站点</title>
+    <title>欢迎来到苹罐的游戏站点</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
@@ -46,9 +46,11 @@
         /* 针对特定卡片背景色的微调 */
         .game-card.bg-orange-100 { background-color: rgba(255, 237, 213, 0.9); }
         .game-card.bg-indigo-100 { background-color: rgba(224, 231, 255, 0.9); }
+        .game-card.bg-purple-100 { background-color: rgba(243, 232, 255, 0.9); }
         
         .game-card.bg-orange-100:hover { background-color: rgba(254, 215, 170, 0.95); }
         .game-card.bg-indigo-100:hover { background-color: rgba(199, 210, 254, 0.95); }
+        .game-card.bg-purple-100:hover { background-color: rgba(221, 214, 254, 0.95); }
 
         @media (max-width: 640px) {
             .game-card { padding: 1.5rem; }
@@ -124,14 +126,14 @@
     </script>
     <div class="max-w-7xl w-full text-center">
         <h1 class="text-3xl sm:text-5xl font-extrabold mb-10 text-gray-800 tracking-tight drop-shadow-sm">
-            欢迎来到pkmiao的游戏站点，你需要什么？
+            欢迎来到苹罐的游戏站点，你需要什么？
         </h1>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 md:gap-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             
             <a href="https://game.pkmiao.com/tank3d/" target="_blank" class="game-card block p-6 rounded-3xl border-4 border-black bg-orange-100 shadow-xl hover:bg-orange-200 transform hover:rotate-1 transition-all duration-400 ease-in-out cursor-pointer group flex flex-col justify-between h-full">
                 <div class="flex flex-col items-center flex-grow justify-center">
-                    <div class="text-6xl mb-4 transition-transform group-hover:scale-110">🚛</div>
+                    <div class="text-6xl mb-4 transition-transform group-hover:scale-110">🛩️</div>
                     <h2 class="text-2xl sm:text-3xl font-black mb-3 text-black uppercase">坦克3D</h2>
                     <p class="text-base sm:text-lg text-gray-700 font-semibold">由B站up主bili_3493108501187431制作的类战雷游戏</p>
                 </div>
@@ -145,6 +147,15 @@
                     <p class="text-base sm:text-lg text-gray-700 font-semibold">由B站up主stupid_scout制作的类战地游戏</p>
                 </div>
                 <div class="mt-6 text-base font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">开始游戏 →</div>
+            </a>
+
+            <a href="https://game.pkmiao.com/wrsk/" target="_blank" class="game-card block p-6 rounded-3xl border-4 border-black bg-purple-100 shadow-xl hover:bg-purple-200 transform hover:-rotate-1 transition-all duration-400 ease-in-out cursor-pointer group flex flex-col justify-between h-full">
+                <div class="flex flex-col items-center flex-grow justify-center">
+                    <div class="text-6xl mb-4 transition-transform group-hover:scale-110">🌌</div>
+                    <h2 class="text-2xl sm:text-3xl font-black mb-3 text-black uppercase">星穹熔炉</h2>
+                    <p class="text-base sm:text-lg text-gray-700 font-semibold">由B站up主PotnQ制作的类我的世界+无人深空+异星工厂游戏（联机不可用，如需联机功能，在B站PotnQ视频下载完整游戏文件）</p>
+                </div>
+                <div class="mt-6 text-base font-bold text-gray-900 group-hover:text-purple-600 transition-colors">开始游戏 →</div>
             </a>
 
         </div>
