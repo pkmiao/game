@@ -6,7 +6,7 @@
 <title>钢铁前线 · 战役合集</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body><script>try{localStorage.removeItem("sf_mobile");}catch(e){}</script><script>try{localStorage.setItem("sf_campaign","0");}catch(e){}</script>
 <div id="ui">
 <div id="crosshair"><span class="chl t"></span><span class="chl b"></span><span class="chl l"></span><span class="chl r"></span><span class="chdot"></span></div>
 <div id="hitmark"><span></span><span></span><span></span><span></span></div>
@@ -200,5 +200,34 @@
 <script src="js/30_main.js"></script>
 <script src="js/31_touch.js"></script>
 <script src="js/32_boot.js"></script>
+<script>
+window.__errs=[];
+window.addEventListener('error',function(e){ window.__errs.push((e.message||'?')+' @ '+String(e.filename||'').split('/').pop()+':'+e.lineno); });
+window.addEventListener('load', function(){
+  setTimeout(function(){
+    try{
+      Object.defineProperty(document,'hidden',{get:function(){return false;}});
+      renderer.render=function(){};
+      startMatch();
+      deployPlayer();
+      var t0=performance.now(), n=0;
+      performance.now=function(){ return t0+n*16.7; };
+      var _raf=window.requestAnimationFrame;
+      window.requestAnimationFrame=function(){ return 0; }; // 闃叉鎵嬪姩loop鏃禦AF鍥炶皟鍫嗙Н
+      var ok=0;
+      for(var i=0;i<300;i++){ n++; try{ loop(); ok++; }catch(e){ window.__errs.push('loop#'+i+': '+String(e.stack||e).slice(0,300)); break; } }
+      window.requestAnimationFrame=_raf;
+      var r={mode:'desktop',camp:(typeof CAMPAIGN!=='undefined')?CAMPAIGN.id:'?',map:MAP_SIZE,errs:window.__errs,frames:ok,nowT:+nowT.toFixed(1),
+        boxes:BOXES.length, worldKids:world.children.length, merged:MERGE_STATS.merged,
+        dead:soldiers.filter(function(s){return !s.alive;}).length, particles:particles.length,
+        tk0:tickets[0], tk1:(isFinite(tickets[1])?tickets[1]:'INF'), pAlive:player.alive};
+      if(MOBILE&&window.updateTouchVis){ try{ updateTouchVis(); r.touchOK=1; r.interactBtn=!document.getElementById('tInteract').classList.contains('hiddenT'); }catch(e){ r.touchOK='ERR '+e.message; } }
+      var div=document.createElement('div'); div.textContent='TESTRESULT '+JSON.stringify(r)+' ENDRESULT'; document.body.appendChild(div);
+    }catch(e){
+      var d2=document.createElement('div'); d2.textContent='TESTRESULT {"fatal":"'+String(e.message).replace(/"/g,"'").slice(0,200)+'"} ENDRESULT'; document.body.appendChild(d2);
+    }
+  }, 900);
+});
+</script>
 </body>
 </html>
