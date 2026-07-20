@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>帽孩出击 · Hat Shoot</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #bfe3ff;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif; user-select: none; }
+  #game { position: fixed; inset: 0; }
+  #game canvas { display: block; }
+  .hidden { display: none !important; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+
+  /* 准星 */
+  #crosshair { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 24px; height: 24px; }
+  #crosshair::before, #crosshair::after { content: ""; position: absolute; background: #fff;
+    box-shadow: 0 0 3px rgba(0,0,0,.7); }
+  #crosshair::before { left: 11px; top: 2px; width: 2px; height: 20px; }
+  #crosshair::after  { left: 2px; top: 11px; width: 20px; height: 2px; }
+  #hitmarker { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    font-size: 30px; font-weight: bold; color: #fff; opacity: 0; text-shadow: 0 0 4px #000; }
+  #hitmarker.kill { color: #e63229; }
+
+  /* 顶部：剩余敌人 */
+  #topbar { position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,.85); border-left: 5px solid #e63229; padding: 8px 22px;
+    font-size: 18px; color: #222; letter-spacing: 1px; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+  #topbar b { color: #e63229; }
+
+  /* 左下：血量 */
+  #healthWrap { position: absolute; left: 26px; bottom: 26px; width: 240px; }
+  #healthNum { font-size: 30px; font-weight: bold; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
+  #healthBg { margin-top: 4px; height: 10px; background: rgba(0,0,0,.35); }
+  #healthBar { height: 100%; width: 100%; background: #e63229; transition: width .15s; }
+
+  /* 右下：武器 */
+  #ammoBox { position: absolute; right: 26px; bottom: 26px; text-align: right;
+    color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.55); }
+  #weaponName { font-size: 15px; opacity: .9; letter-spacing: 2px; }
+  #ammo { font-size: 34px; font-weight: bold; }
+  #potions { font-size: 15px; margin-top: 2px; color: #d9b3ff; }
+  #reloadHint { font-size: 14px; color: #ffd94d; height: 18px; }
+
+  /* 左上：小提示 */
+  #viewHint { position: absolute; left: 26px; top: 18px; font-size: 13px; color: #fff;
+    background: rgba(0,0,0,.3); padding: 6px 10px; line-height: 1.7; }
+
+  /* 受击红晕 */
+  #vignette { position: absolute; inset: 0; opacity: 0;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(230,30,30,.55) 100%); }
+
+  /* ---------- 全屏界面 ---------- */
+  .screen { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; background: linear-gradient(160deg, #eaf6ff 0%, #cfe9ff 60%, #bcd9f5 100%); }
+  .screen h1 { font-size: 54px; color: #1a2b3c; letter-spacing: 6px; }
+  .screen h1 .red { color: #e63229; }
+  .screen .sub { margin-top: 8px; color: #4a6076; letter-spacing: 3px; font-size: 15px; }
+  .btn { margin-top: 34px; pointer-events: auto; cursor: pointer; border: none;
+    background: #e63229; color: #fff; font-size: 20px; letter-spacing: 4px;
+    padding: 14px 52px; box-shadow: 0 4px 0 #b02020; transition: transform .08s; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: translateY(2px); box-shadow: none; }
+  .keys { margin-top: 30px; background: rgba(255,255,255,.75); padding: 18px 30px;
+    color: #233; font-size: 14px; line-height: 2; columns: 2; column-gap: 46px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+  .keys b { display: inline-block; min-width: 74px; color: #e63229; }
+  #endStats { margin-top: 14px; font-size: 18px; color: #345; letter-spacing: 1px; line-height: 1.9; }
+  .tip { margin-top: 18px; font-size: 13px; color: #7a8ea0; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<!-- 游戏内 HUD -->
+<div id="hud" class="hidden">
+  <div id="crosshair"><div id="hitmarker">✕</div></div>
+  <div id="topbar">剩余敌人 <b><span id="enemyCount">12</span> / <span id="enemyTotal">12</span></b></div>
+  <div id="healthWrap">
+    <span id="healthNum">100</span>
+    <div id="healthBg"><div id="healthBar"></div></div>
+  </div>
+  <div id="ammoBox">
+    <div id="weaponName">激光枪</div>
+    <div id="ammo">30 / ∞</div>
+    <div id="potions">药瓶 × 3（G 投掷）</div>
+    <div id="reloadHint"></div>
+  </div>
+  <div id="viewHint">V 第一/第三人称<br>1/2 切枪 · F 雨伞 · G 药瓶</div>
+  <div id="vignette"></div>
+</div>
+
+<!-- 开始界面 -->
+<div id="startScreen" class="screen">
+  <h1>帽孩<span class="red">出击</span></h1>
+  <div class="sub">HAT SHOOT · 屋顶清场行动 —— 消灭全部黑手党</div>
+  <button id="startBtn" class="btn">开始游戏</button>
+  <div class="keys">
+    <div><b>W A S D</b>移动</div>
+    <div><b>鼠标</b>视角 / 左键开火</div>
+    <div><b>右键</b>瞄准</div>
+    <div><b>Shift</b>冲刺</div>
+    <div><b>空格</b>跳跃</div>
+    <div><b>C</b>蹲下 / 冲刺中 = 滑铲</div>
+    <div><b>R</b>换弹</div>
+    <div><b>1 / 2</b>激光枪 / 榴弹发射器</div>
+    <div><b>F</b>雨伞近战</div>
+    <div><b>G</b>投掷药瓶手雷</div>
+    <div><b>V</b>第一 / 第三人称</div>
+    <div><b>Esc</b>暂停</div>
+  </div>
+  <div class="tip">提示：掉下楼顶会扣血并被拉回出生点；脱战 5 秒后自动回血</div>
+</div>
+
+<!-- 结算界面 -->
+<div id="endScreen" class="screen hidden">
+  <h1 id="endTitle">胜利</h1>
+  <div id="endStats"></div>
+  <button id="restartBtn" class="btn">再来一局（Enter）</button>
+</div>
+
+<!-- 暂停界面 -->
+<div id="pauseScreen" class="screen hidden">
+  <h1>已<span class="red">暂停</span></h1>
+  <button id="resumeBtn" class="btn">继续游戏</button>
+  <div class="keys">
+    <div><b>W A S D</b>移动</div>
+    <div><b>Shift</b>冲刺</div>
+    <div><b>C</b>蹲下 / 滑铲</div>
+    <div><b>空格</b>跳跃</div>
+    <div><b>R</b>换弹</div>
+    <div><b>1 / 2</b>切换武器</div>
+    <div><b>F</b>雨伞</div>
+    <div><b>G</b>药瓶手雷</div>
+    <div><b>V</b>切换视角</div>
+    <div><b>右键</b>瞄准</div>
+  </div>
+</div>
+
+<script src="libs/three.min.js"></script>
+<script src="js/config.js"></script>
+<script src="models/hatkid.js"></script>
+<script src="models/mafia.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/input.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/world.js"></script>
+<script src="js/player.js"></script>
+<script src="js/cameraRig.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
