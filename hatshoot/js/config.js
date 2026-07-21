@@ -28,13 +28,23 @@ HS.CFG = {
     fovSprint: 82,
     fovSlide: 88,
     fovAim: 55,
-    tpDist: 3.4,          // 第三人称相机距离
-    tpRight: 0.6,         // 过肩右偏移
-    tpUp: 0.35,
+    tpDist: 2.38,         // 第三人称相机距离（缩短 30%）
+    tpRight: 0.42,        // 过肩右偏移（缩短 30%）
+    tpUp: 0.245,          // 上偏移（缩短 30%）
     sens: 0.0023          // 鼠标灵敏度
   },
 
+  zipline: {
+    speedFactor: 2,       // 滑行速度 = 走路速度 × 该值
+    riseTime: 0.45,       // 按 E 后上升到握绳高度的时间
+    grabDrop: 1.05,       // 握绳时脚底低于绳索的高度（手臂伸直悬挂）
+    nearRange: 2.2,       // 靠近杆的水平触发距离
+    nearDy: 2.5,          // 靠近杆的高度容差
+    sag: 0.16             // 绳索弧形下坠比例（相对绳长）
+  },
+
   weapons: {
+    startGroups: 3,       // 开场备弹 = 弹匣容量 × 该值（取消无限弹药）
     laser: {
       name: '激光枪',
       mag: 30,
@@ -44,8 +54,8 @@ HS.CFG = {
       spreadHip: 0.012    // 腰射散布（弧度），瞄准时为 0
     },
     grenade: {
-      name: '榴弹发射器',
-      mag: 4,
+      name: 'M32A1 榴弹发射器',
+      mag: 6,             // 6 发转轮弹巢
       damage: 80,
       radius: 4,
       selfFactor: 0.5,    // 自伤比例
@@ -96,6 +106,22 @@ HS.CFG = {
     pants: 0x3b6fd4,
     mafiaSuit: 0xf2f2f2,
     mafiaHat: 0x2b2b33,
-    poison: 0x9b4dff
+    poison: 0x9b4dff,
+    // 帽孩参考图配色
+    shirtPurple: 0x7a4fb0,   // 紫色上衣 / 裙子
+    capeYellow: 0xf2b21f,    // 黄色披风 / 围巾
+    eyeBlue: 0x2aa6d8,       // 蓝色眼睛
+    sockWhite: 0xf3e9e2,     // 白色裤袜
+    bootBrown: 0x6b3d1c,     // 棕色靴子
+    lockGray: 0x9aa0a6,      // 胸前挂锁
+    // 雨伞
+    umbBlue: 0x4aa3d8,       // 蓝色伞面
+    umbStar: 0xffd23a,       // 黄色五角星
+    umbWood: 0x5a3a1a,       // 深褐木色伞杆
+    // 药瓶三角烧瓶
+    flaskGlass: 0xb48cff,
+    flaskLiquid: 0x9b4dff,
+    // 滑索
+    ropeGray: 0x8a8f96
   }
 };

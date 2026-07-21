@@ -135,10 +135,10 @@ HS.enemies = (function () {
         const s = Math.sin(e.walkPhase);
         e.parts.legL.rotation.x = s * 0.55;
         e.parts.legR.rotation.x = -s * 0.55;
-        if (e.state !== 'windup') e.parts.armL.rotation.x = -s * 0.4;
       } else {
         e.parts.legL.rotation.x *= 0.8;
         e.parts.legR.rotation.x *= 0.8;
+        e.parts.armL.rotation.x *= 0.8;
       }
     }
   }
@@ -215,6 +215,7 @@ HS.enemies = (function () {
       remaining--;
       HS.ui.setEnemies(remaining, E().count);
       if (remaining <= 0 && onAllDead) onAllDead();
+      HS.weapons.spawnDrop(e.pos);
       return 'kill';
     }
     // 被打会激怒：进入追击

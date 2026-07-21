@@ -1,29 +1,31 @@
-// weapons.js — 激光枪 / 榴弹发射器 / 药瓶手雷 / 雨伞近战 + 弹道 + 视图模型
 window.HS = window.HS || {};
 
 HS.weapons = (function () {
   const W = () => HS.CFG.weapons;
   let scene = null, camera = null;
 
-  let current = 'laser';                 // 'laser' | 'grenade'
-  let ammo = { laser: 0, grenade: 0 };
+  let current = 'laser';
+  const ammo = { laser: 0, grenade: 0 };
+  const reserve = { laser: 0, grenade: 0 };
   let potions = 0;
   let reloading = false, reloadTimer = 0;
   let fireTimer = 0, meleeCD = 0, throwCD = 0, switchTimer = 0;
   let prevLeft = false;
-  const projectiles = [];                // 榴弹与药瓶
-  let recoil = 0;                        // 视图模型后座位移
+  const projectiles = [];
+  const drops = [];
+  let recoil = 0;
 
-  // 枪模（第三人称手持 + 第一人称视图模型 各一份）
-  const handGuns = {};                   // 挂在玩家右手
-  const viewGuns = {};                   // 挂在相机
-  let viewRoot = null;                   // 第一人称视图模型容器
-  let viewUmbrella = null;               // 第一人称雨伞
+  const handGuns = {};
+  const viewGuns = {};
+  let viewRoot = null;
+  let viewUmbrella = null;
 
   function buildGun(kind) {
     const g = new THREE.Group();
     const dark = new THREE.MeshLambertMaterial({ color: 0x2e2e38 });
+    const metal = new THREE.MeshLambertMaterial({ color: 0x444450 });
     const accent = new THREE.MeshLambertMaterial({ color: kind === 'laser' ? 0x9b4dff : 0xe63229 });
+    const muzzle = new THREE.Object3D();
     if (kind === 'laser') {
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.12, 0.42), dark); g.add(body);
       const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8), dark);
@@ -33,42 +35,98 @@ HS.weapons = (function () {
       tip.rotation.x = Math.PI / 2; tip.position.set(0, 0.02, 0.47); g.add(tip);
       const fin = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.08, 0.16), accent);
       fin.position.set(0, 0.1, -0.05); g.add(fin);
+      const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.06), dark);
+      grip.position.set(0, -0.1, -0.08); g.add(grip);
+      muzzle.position.set(0, 0.02, 0.49);
     } else {
-      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.5, 10), dark);
-      tube.rotation.x = Math.PI / 2; g.add(tube);
-      const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.06, 10), accent);
-      ring.rotation.x = Math.PI / 2; ring.position.z = 0.18; g.add(ring);
-      const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, 0.06), dark);
-      grip.position.set(0, -0.1, -0.1); g.add(grip);
+      const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.16, 12), metal);
+      cyl.rotation.x = Math.PI / 2; cyl.position.set(0, 0.02, 0.06); g.add(cyl);
+      const capF = new THREE.Mesh(new THREE.CylinderGeometry(0.112, 0.112, 0.02, 12), dark);
+      capF.rotation.x = Math.PI / 2; capF.position.set(0, 0.02, 0.15); g.add(capF);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.17, 8),
+          new THREE.MeshBasicMaterial({ color: 0x111114 }));
+        hole.rotation.x = Math.PI / 2;
+        hole.position.set(Math.cos(a) * 0.062, 0.02 + Math.sin(a) * 0.062, 0.06);
+        g.add(hole);
+      }
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.34, 8), dark);
+      barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.085, 0.24); g.add(barrel);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 0.22), accent);
+      rail.position.set(0, 0.13, 0.06); g.add(rail);
+      const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.07), dark);
+      grip.position.set(0, -0.1, -0.06); grip.rotation.x = -0.2; g.add(grip);
+      const stock = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.2), metal);
+      stock.position.set(0, -0.02, -0.22); g.add(stock);
+      const fore = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, 0.12), dark);
+      fore.position.set(0, -0.08, 0.12); g.add(fore);
+      muzzle.position.set(0, 0.085, 0.42);
     }
+    g.add(muzzle);
+    g.muzzle = muzzle;
     g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     return g;
   }
 
-  function buildMiniUmbrella() {
-    const u = new THREE.Group();
-    const m = new THREE.MeshLambertMaterial({ color: HS.CFG.colors.hatPurple });
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.6, 6), m); u.add(shaft);
-    const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.2, 8), m);
-    canopy.position.y = 0.3; u.add(canopy);
-    return u;
+  function buildFlask(scale) {
+    const s = scale || 1;
+    const m = new THREE.Group();
+    const glass = new THREE.MeshLambertMaterial({ color: HS.CFG.colors.flaskGlass, transparent: true, opacity: 0.7 });
+    const liquid = new THREE.MeshLambertMaterial({ color: HS.CFG.colors.flaskLiquid, transparent: true, opacity: 0.85 });
+    const cork = new THREE.MeshLambertMaterial({ color: 0x8a5a2b });
+    const body = new THREE.Mesh(new THREE.ConeGeometry(0.1 * s, 0.16 * s, 10), glass);
+    body.position.y = 0.02 * s; m.add(body);
+    const liq = new THREE.Mesh(new THREE.ConeGeometry(0.085 * s, 0.1 * s, 10), liquid);
+    liq.position.y = -0.01 * s; m.add(liq);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.022 * s, 0.03 * s, 0.1 * s, 8), glass);
+    neck.position.y = 0.13 * s; m.add(neck);
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.026 * s, 0.026 * s, 0.03 * s, 8), cork);
+    top.position.y = 0.19 * s; m.add(top);
+    m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    return m;
+  }
+
+  function buildDropMesh(kind) {
+    if (kind === 'potion') return buildFlask(0.9);
+    const g = new THREE.Group();
+    if (kind === 'laser') {
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.2),
+        new THREE.MeshLambertMaterial({ color: 0x6a3d9a }));
+      g.add(box);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.03, 0.21),
+        new THREE.MeshBasicMaterial({ color: 0xcc66ff }));
+      g.add(stripe);
+    } else {
+      const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.16, 8),
+        new THREE.MeshLambertMaterial({ color: 0x3a6b3a }));
+      shell.rotation.x = Math.PI / 2; g.add(shell);
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6),
+        new THREE.MeshLambertMaterial({ color: 0x222228 }));
+      tip.position.z = 0.08; g.add(tip);
+    }
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8),
+      new THREE.MeshBasicMaterial({ color: kind === 'potion' ? 0x9b4dff : (kind === 'laser' ? 0xcc66ff : 0x66ff66), transparent: true, opacity: 0.18 }));
+    g.add(glow);
+    g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    return g;
   }
 
   function init(s, cam) {
     scene = s; camera = cam;
-    // 第一人称视图模型容器
     viewRoot = new THREE.Group();
     viewRoot.position.set(0.3, -0.28, -0.55);
     camera.add(viewRoot);
     ['laser', 'grenade'].forEach((k) => {
       viewGuns[k] = buildGun(k);
-      viewGuns[k].rotation.y = Math.PI;    // 枪口朝 -Z（相机前方）
+      viewGuns[k].rotation.y = Math.PI;
       viewRoot.add(viewGuns[k]);
       handGuns[k] = buildGun(k);
     });
-    viewUmbrella = buildMiniUmbrella();
-    viewUmbrella.position.set(0.45, -0.2, -0.3);
-    viewUmbrella.rotation.z = 0.4;
+    viewUmbrella = HS.buildUmbrella();
+    viewUmbrella.scale.setScalar(0.9);
+    viewUmbrella.position.set(0.42, -0.18, -0.32);
+    viewUmbrella.rotation.set(0.3, 0, 0.5);
     viewUmbrella.visible = false;
     camera.add(viewUmbrella);
     reset();
@@ -76,29 +134,43 @@ HS.weapons = (function () {
 
   function reset() {
     current = 'laser';
+    const sg = W().startGroups;
     ammo.laser = W().laser.mag;
     ammo.grenade = W().grenade.mag;
+    reserve.laser = W().laser.mag * sg;
+    reserve.grenade = W().grenade.mag * sg;
     potions = W().potion.count;
     reloading = false; reloadTimer = 0;
     fireTimer = 0; meleeCD = 0; throwCD = 0; prevLeft = false;
     projectiles.forEach((p) => scene.remove(p.mesh));
     projectiles.length = 0;
+    drops.forEach((d) => scene.remove(d.mesh));
+    drops.length = 0;
   }
 
-  // 把枪挂到帽孩右手（第三人称可见）
+  function umbrellaInHand() { return meleeCD > W().umbrella.cooldown - 0.28; }
+
   function attachHandGuns() {
-    const arm = HS.player.parts.armR;
+    const armR = HS.player.parts.armR;
+    const armL = HS.player.parts.armL;
+    const inHand = umbrellaInHand();
+    const holding = !inHand && !HS.player.sliding && !(HS.zipline && HS.zipline.active);
     ['laser', 'grenade'].forEach((k) => {
-      if (handGuns[k].parent !== arm) {
-        arm.add(handGuns[k]);
-        handGuns[k].position.set(0, -0.36, 0.12);
-        handGuns[k].rotation.set(-Math.PI / 2, 0, 0); // 枪口朝身体前方
+      if (handGuns[k].parent !== armR) {
+        armR.add(handGuns[k]);
+        handGuns[k].position.set(0, -0.34, 0.1);
+        handGuns[k].rotation.set(-Math.PI / 2, 0, 0);
       }
-      handGuns[k].visible = (k === current);
+      handGuns[k].visible = (k === current) && holding;
     });
+    if (holding) {
+      armR.rotation.x += ((-1.35) - armR.rotation.x) * 0.3;
+      armR.rotation.z += ((0.12) - armR.rotation.z) * 0.3;
+      armL.rotation.x += ((-1.3) - armL.rotation.x) * 0.3;
+      armL.rotation.z += ((-0.55) - armL.rotation.z) * 0.3;
+    }
   }
 
-  // 雨伞：平时背在背上，挥击时回到手中
   function setUmbrellaOnBack() {
     const umb = HS.player.parts.umbrella;
     const body = HS.player.parts.body;
@@ -121,17 +193,47 @@ HS.weapons = (function () {
   function camDir() {
     return new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
   }
-  function muzzlePos(fp) {
-    const fwd = camDir();
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-    const base = camera.position.clone();
-    return fp
-      ? base.addScaledVector(fwd, 0.6).addScaledVector(right, 0.25).add(new THREE.Vector3(0, -0.18, 0))
-      : base.addScaledVector(fwd, 0.5).addScaledVector(right, 0.3).add(new THREE.Vector3(0, -0.25, 0));
+
+  function aimPoint() {
+    const o = camera.position;
+    const d = camDir();
+    const wd = HS.world.rayHit(o, d, 120);
+    const wdClamped = wd === Infinity ? 120 : wd;
+    const eh = HS.enemies.raycast(o, d, wdClamped);
+    if (eh) return eh.point;
+    return o.clone().addScaledVector(d, wdClamped);
+  }
+
+  function dirToAim(origin) {
+    const dir = aimPoint().sub(origin);
+    if (dir.lengthSq() < 0.0001) return camDir();
+    return dir.normalize();
+  }
+
+  const _wp = new THREE.Vector3();
+  function muzzleWorldPos() {
+    const fp = HS.cameraRig.firstPerson;
+    const gun = fp ? viewGuns[current] : handGuns[current];
+    return gun.muzzle.getWorldPosition(_wp.clone());
+  }
+  function throwOrigin() {
+    if (HS.cameraRig.firstPerson) {
+      const fwd = camDir();
+      return camera.position.clone().addScaledVector(fwd, 0.5).add(new THREE.Vector3(0.25, -0.2, 0));
+    }
+    const arm = HS.player.parts.armR;
+    const hand = new THREE.Object3D();
+    hand.position.set(0, -0.35, 0.1);
+    arm.add(hand);
+    arm.updateMatrixWorld(true);
+    const w = hand.getWorldPosition(new THREE.Vector3());
+    arm.remove(hand);
+    return w;
   }
 
   function update(dt, now) {
     if (!HS.player.alive) return;
+    scene.updateMatrixWorld();
     const input = HS.input;
     fireTimer = Math.max(0, fireTimer - dt);
     meleeCD = Math.max(0, meleeCD - dt);
@@ -140,51 +242,50 @@ HS.weapons = (function () {
     recoil = Math.max(0, recoil - dt * 3);
 
     attachHandGuns();
-    if (meleeCD <= W().umbrella.cooldown - 0.28) setUmbrellaOnBack();
+    if (!umbrellaInHand()) setUmbrellaOnBack();
 
-    // —— 切换武器 ——
     if (input.justHit('Digit1') && current !== 'laser') switchTo('laser');
     if (input.justHit('Digit2') && current !== 'grenade') switchTo('grenade');
 
-    // —— 换弹 ——
     if (reloading) {
       reloadTimer -= dt;
       if (reloadTimer <= 0) {
         reloading = false;
-        ammo[current] = W()[current].mag;
+        const need = W()[current].mag - ammo[current];
+        const take = Math.min(need, reserve[current]);
+        ammo[current] += take;
+        reserve[current] -= take;
         HS.audio.reload();
       }
-    } else if (input.justHit('KeyR') && ammo[current] < W()[current].mag) {
+    } else if (input.justHit('KeyR') && ammo[current] < W()[current].mag && reserve[current] > 0) {
       reloading = true;
       reloadTimer = W()[current].reload;
       HS.audio.reload();
     }
 
-    // —— 开火 ——
     const left = input.mouseDown.left;
     const aiming = input.mouseDown.right;
     if (current === 'laser') {
       if (left && !reloading && fireTimer <= 0 && switchTimer <= 0) {
         if (ammo.laser > 0) fireLaser(aiming);
-        else { reloading = true; reloadTimer = W().laser.reload; HS.audio.reload(); }
+        else if (reserve.laser > 0) { reloading = true; reloadTimer = W().laser.reload; HS.audio.reload(); }
       }
     } else {
       if (left && !prevLeft && !reloading && fireTimer <= 0 && switchTimer <= 0) {
         if (ammo.grenade > 0) fireGrenade();
-        else { reloading = true; reloadTimer = W().grenade.reload; HS.audio.reload(); }
+        else if (reserve.grenade > 0) { reloading = true; reloadTimer = W().grenade.reload; HS.audio.reload(); }
       }
     }
     prevLeft = left;
 
-    // —— 雨伞近战 ——
-    if (input.justHit('KeyF') && meleeCD <= 0) meleeSwing();
+    if ((input.justHit('KeyF') || input.justHit('Digit3')) && meleeCD <= 0) meleeSwing();
 
-    // —— 药瓶手雷 ——
     if ((input.justHit('KeyG') || input.justHit('Digit4')) && potions > 0 && throwCD <= 0) {
       throwPotion();
     }
 
     updateProjectiles(dt);
+    updateDrops(dt, now);
     updateViewmodel(dt, now, aiming);
   }
 
@@ -195,21 +296,21 @@ HS.weapons = (function () {
     HS.audio.uiClick();
   }
 
-  // —— 激光枪：即时命中 ——
   function fireLaser(aiming) {
     const cfg = W().laser;
     fireTimer = cfg.interval;
     ammo.laser--;
+    const origin = muzzleWorldPos();
+    const dir = dirToAim(origin);
     const spread = aiming ? 0 : cfg.spreadHip;
-    const dir = camDir();
     dir.x += (Math.random() - 0.5) * spread * 2;
     dir.y += (Math.random() - 0.5) * spread * 2;
     dir.z += (Math.random() - 0.5) * spread * 2;
     dir.normalize();
-    const origin = camera.position.clone();
 
     const worldDist = HS.world.rayHit(origin, dir, 120);
-    const eHit = HS.enemies.raycast(origin, dir, Math.min(worldDist, 120));
+    const wdClamped = worldDist === Infinity ? 120 : worldDist;
+    const eHit = HS.enemies.raycast(origin, dir, Math.min(wdClamped, 120));
     let end;
     if (eHit) {
       end = eHit.point;
@@ -218,17 +319,15 @@ HS.weapons = (function () {
       HS.ui.hitmarker(res === 'kill');
       HS.audio[res === 'kill' ? 'kill' : 'hit']();
     } else {
-      const d = Math.min(worldDist, 120);
-      end = origin.clone().addScaledVector(dir, d === Infinity ? 120 : d);
+      end = origin.clone().addScaledVector(dir, Math.min(wdClamped, 120));
       if (worldDist !== Infinity) HS.effects.sparks(end, 0xffffff, 4, 2);
     }
-    HS.effects.beam(muzzlePos(HS.cameraRig.firstPerson), end);
+    HS.effects.beam(origin, end);
     HS.player.kick(0.004);
     recoil = Math.min(0.15, recoil + 0.05);
     HS.audio.laser();
   }
 
-  // —— 榴弹发射器：抛物线弹体，命中即爆 ——
   function fireGrenade() {
     const cfg = W().grenade;
     fireTimer = cfg.interval;
@@ -242,12 +341,13 @@ HS.weapons = (function () {
       new THREE.MeshBasicMaterial({ color: 0xe63229 })
     );
     mesh.add(band);
-    mesh.position.copy(muzzlePos(true));
+    const origin = muzzleWorldPos();
+    mesh.position.copy(origin);
     scene.add(mesh);
-    const dir = camDir();
+    const dir = dirToAim(origin);
     projectiles.push({
       kind: 'grenade', mesh,
-      vel: dir.multiplyScalar(cfg.projSpeed).add(new THREE.Vector3(0, 2, 0))
+      vel: dir.multiplyScalar(cfg.projSpeed).add(new THREE.Vector3(0, 1.5, 0))
     });
     HS.player.kick(0.03);
     recoil = 0.2;
@@ -255,27 +355,18 @@ HS.weapons = (function () {
     HS.audio.grenadeFire();
   }
 
-  // —— 药瓶手雷 ——
   function throwPotion() {
     const cfg = W().potion;
     potions--;
     throwCD = 0.5;
-    const mesh = new THREE.Group();
-    const bottle = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.06, 0.08, 0.2, 8),
-      new THREE.MeshLambertMaterial({ color: 0x9b4dff, transparent: true, opacity: 0.85 })
-    );
-    mesh.add(bottle);
-    const neck = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.03, 0.04, 0.08, 8),
-      new THREE.MeshLambertMaterial({ color: 0xd9c8ff })
-    );
-    neck.position.y = 0.14; mesh.add(neck);
-    mesh.position.copy(muzzlePos(true));
+    const mesh = buildFlask(1);
+    const origin = throwOrigin();
+    mesh.position.copy(origin);
     scene.add(mesh);
+    const dir = dirToAim(origin);
     projectiles.push({
       kind: 'potion', mesh,
-      vel: camDir().multiplyScalar(cfg.throwSpeed).add(new THREE.Vector3(0, 3, 0)),
+      vel: dir.multiplyScalar(cfg.throwSpeed).add(new THREE.Vector3(0, 2, 0)),
       spin: Math.random() * 8 + 4
     });
     HS.audio.swing();
@@ -286,13 +377,11 @@ HS.weapons = (function () {
       const p = projectiles[i];
       p.vel.y -= 20 * dt;
       const pPos = p.mesh.position;
-      // 用世界碰撞体做点移动（半径很小）；记录碰撞前速度以检测撞墙
       const preX = p.vel.x, preZ = p.vel.z;
       const hitGround = HS.world.moveBody(pPos, p.vel, 0.09, 0.09, dt);
       const hitWall = (Math.abs(preX) > 0.01 && p.vel.x === 0) ||
                       (Math.abs(preZ) > 0.01 && p.vel.z === 0);
       if (p.spin) p.mesh.rotation.x += p.spin * dt;
-      // 命中敌人也算引爆
       const nearEnemy = HS.enemies.nearest(pPos, 0.6);
       if (hitGround || hitWall || nearEnemy || pPos.y < -30) {
         if (p.kind === 'grenade') explode(pPos.clone());
@@ -308,7 +397,6 @@ HS.weapons = (function () {
     HS.effects.explosion(at, cfg.radius);
     HS.audio.explosion();
     HS.enemies.explode(at, cfg.radius, cfg.damage);
-    // 自伤
     const d = HS.player.pos.distanceTo(at);
     if (d < cfg.radius) {
       const dmg = cfg.damage * (1 - d / cfg.radius) * cfg.selfFactor;
@@ -323,13 +411,53 @@ HS.weapons = (function () {
     HS.effects.poisonCloud(at, cfg.radius, cfg.duration, cfg.dps);
   }
 
-  // —— 雨伞挥击 ——
+  function spawnDrop(at) {
+    if (Math.random() > 0.7) return;
+    const r = Math.random();
+    const kind = r < 0.45 ? 'laser' : (r < 0.8 ? 'grenade' : 'potion');
+    const mesh = buildDropMesh(kind);
+    const baseY = at.y + 0.55;
+    mesh.position.set(at.x + (Math.random() - 0.5) * 0.6, baseY, at.z + (Math.random() - 0.5) * 0.6);
+    scene.add(mesh);
+    drops.push({ kind, mesh, baseY, t: Math.random() * 6 });
+  }
+
+  function updateDrops(dt, now) {
+    const pp = HS.player.pos;
+    for (let i = drops.length - 1; i >= 0; i--) {
+      const d = drops[i];
+      d.t += dt;
+      d.mesh.position.y = d.baseY + Math.sin(d.t * 2.2) * 0.12;
+      d.mesh.rotation.y += dt * 1.5;
+      const dx = d.mesh.position.x - pp.x, dz = d.mesh.position.z - pp.z;
+      const dy = Math.abs(d.mesh.position.y - (pp.y + 0.6));
+      if (Math.hypot(dx, dz) < 1.0 && dy < 1.3 && HS.player.alive) {
+        pickup(d.kind);
+        scene.remove(d.mesh);
+        drops.splice(i, 1);
+      }
+    }
+  }
+
+  function pickup(kind) {
+    if (kind === 'potion') {
+      potions += 1;
+      HS.ui.pickup('拾取 药瓶 +1');
+    } else if (kind === 'laser') {
+      reserve.laser += W().laser.mag;
+      HS.ui.pickup('拾取 激光弹 +' + W().laser.mag);
+    } else {
+      reserve.grenade += W().grenade.mag;
+      HS.ui.pickup('拾取 榴弹 +' + W().grenade.mag);
+    }
+    HS.audio.uiClick();
+  }
+
   function meleeSwing() {
     const cfg = W().umbrella;
     meleeCD = cfg.cooldown;
     setUmbrellaInHand();
     const arm = HS.player.parts.armR;
-    // 挥击动画：手臂快速下劈
     let t = 0;
     const swingAnim = setInterval(() => {
       t += 0.016;
@@ -354,7 +482,6 @@ HS.weapons = (function () {
       HS.ui.hitmarker(killed);
       if (killed) HS.audio.kill();
     }
-    // 第一人称雨伞动画
     if (HS.cameraRig.firstPerson && viewUmbrella) {
       viewUmbrella.visible = true;
       let t2 = 0;
@@ -362,18 +489,18 @@ HS.weapons = (function () {
         t2 += 0.016;
         const k = Math.min(1, t2 / 0.25);
         viewUmbrella.rotation.x = -1.6 + k * 1.8;
-        if (k >= 1) { clearInterval(anim2); viewUmbrella.visible = false; viewUmbrella.rotation.x = 0; }
+        if (k >= 1) { clearInterval(anim2); viewUmbrella.visible = false; viewUmbrella.rotation.x = 0.3; }
       }, 16);
     }
   }
 
-  // —— 视图模型（第一人称）：摆动 + 后座 + 瞄准位移 ——
   function updateViewmodel(dt, now, aiming) {
     const fp = HS.cameraRig.firstPerson;
     viewRoot.visible = fp;
+    viewUmbrella.visible = fp && umbrellaInHand();
     if (!fp) return;
-    viewGuns.laser.visible = current === 'laser';
-    viewGuns.grenade.visible = current === 'grenade';
+    viewGuns.laser.visible = current === 'laser' && !umbrellaInHand();
+    viewGuns.grenade.visible = current === 'grenade' && !umbrellaInHand();
     const speed = Math.hypot(HS.player.vel.x, HS.player.vel.z);
     const bob = HS.player.grounded ? Math.sin(now * 8) * 0.012 * Math.min(1, speed / 6) : 0;
     const aimY = aiming ? 0.06 : 0, aimX = aiming ? -0.12 : 0;
@@ -384,9 +511,12 @@ HS.weapons = (function () {
   }
 
   return {
-    init, reset, update,
+    init, reset, update, spawnDrop,
+    holdingGun: () => !umbrellaInHand(),
+    umbrellaInHand,
     get current() { return current; },
     get ammo() { return ammo; },
+    get reserve() { return reserve; },
     get potions() { return potions; },
     get reloading() { return reloading; },
     weaponName: () => W()[current].name,

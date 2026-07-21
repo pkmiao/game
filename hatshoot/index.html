@@ -70,6 +70,18 @@
   .keys b { display: inline-block; min-width: 74px; color: #e63229; }
   #endStats { margin-top: 14px; font-size: 18px; color: #345; letter-spacing: 1px; line-height: 1.9; }
   .tip { margin-top: 18px; font-size: 13px; color: #7a8ea0; }
+
+  /* 暂停界面：透明背景，露出游戏画面 */
+  #pauseScreen { background: rgba(8, 12, 22, 0.42); backdrop-filter: blur(2px); }
+  #pauseScreen h1 { color: #ffffff; text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+  #pauseScreen .keys { background: rgba(20,26,38,.62); color: #eaf2ff;
+    box-shadow: 0 2px 18px rgba(0,0,0,.35); }
+  #ziplineHint { position: absolute; left: 50%; top: 62%; transform: translateX(-50%);
+    background: rgba(0,0,0,.55); color: #ffe27a; padding: 8px 18px; font-size: 16px;
+    letter-spacing: 2px; border-left: 4px solid #ffe27a; display: none; }
+  #pickupHint { position: absolute; left: 50%; top: 70%; transform: translateX(-50%);
+    background: rgba(0,0,0,.5); color: #b6ff9b; padding: 6px 14px; font-size: 14px;
+    letter-spacing: 1px; display: none; }
 </style>
 </head>
 <body>
@@ -89,7 +101,9 @@
     <div id="potions">药瓶 × 3（G 投掷）</div>
     <div id="reloadHint"></div>
   </div>
-  <div id="viewHint">V 第一/第三人称<br>1/2 切枪 · F 雨伞 · G 药瓶</div>
+  <div id="viewHint">V 第一/第三人称<br>1/2 切枪 · 3/F 雨伞 · G 药瓶<br>E 滑索 · 走近掉落物拾取</div>
+  <div id="ziplineHint">按 <b>E</b> 使用滑索</div>
+  <div id="pickupHint"></div>
   <div id="vignette"></div>
 </div>
 
@@ -107,12 +121,13 @@
     <div><b>C</b>蹲下 / 冲刺中 = 滑铲</div>
     <div><b>R</b>换弹</div>
     <div><b>1 / 2</b>激光枪 / 榴弹发射器</div>
-    <div><b>F</b>雨伞近战</div>
+    <div><b>3 / F</b>雨伞近战</div>
     <div><b>G</b>投掷药瓶手雷</div>
+    <div><b>E</b>滑索（靠近长杆）</div>
     <div><b>V</b>第一 / 第三人称</div>
     <div><b>Esc</b>暂停</div>
   </div>
-  <div class="tip">提示：掉下楼顶会扣血并被拉回出生点；脱战 5 秒后自动回血</div>
+  <div class="tip">提示：掉下楼顶会扣血并被拉回出生点；脱战 5 秒后自动回血；走近掉落物自动拾取</div>
 </div>
 
 <!-- 结算界面 -->
@@ -133,8 +148,9 @@
     <div><b>空格</b>跳跃</div>
     <div><b>R</b>换弹</div>
     <div><b>1 / 2</b>切换武器</div>
-    <div><b>F</b>雨伞</div>
+    <div><b>3 / F</b>雨伞</div>
     <div><b>G</b>药瓶手雷</div>
+    <div><b>E</b>滑索</div>
     <div><b>V</b>切换视角</div>
     <div><b>右键</b>瞄准</div>
   </div>
@@ -149,6 +165,7 @@
 <script src="js/effects.js"></script>
 <script src="js/world.js"></script>
 <script src="js/player.js"></script>
+<script src="js/zipline.js"></script>
 <script src="js/cameraRig.js"></script>
 <script src="js/weapons.js"></script>
 <script src="js/enemies.js"></script>

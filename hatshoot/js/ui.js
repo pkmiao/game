@@ -13,7 +13,8 @@ HS.ui = (function () {
       weaponName: $('weaponName'), ammo: $('ammo'), potions: $('potions'),
       reloadHint: $('reloadHint'), hitmarker: $('hitmarker'), vignette: $('vignette'),
       startScreen: $('startScreen'), endScreen: $('endScreen'), pauseScreen: $('pauseScreen'),
-      endTitle: $('endTitle'), endStats: $('endStats')
+      endTitle: $('endTitle'), endStats: $('endStats'),
+      ziplineHint: $('ziplineHint'), pickupHint: $('pickupHint')
     };
   }
 
@@ -24,9 +25,23 @@ HS.ui = (function () {
     el.healthBar.style.width = Math.max(0, p.hp) + '%';
     el.weaponName.textContent = w.weaponName() + (HS.cameraRig.firstPerson ? ' · 第一人称' : ' · 第三人称');
     const a = w.ammo[w.current];
-    el.ammo.textContent = a + ' / ∞';
+    el.ammo.textContent = a + ' / ' + w.reserve[w.current];
     el.potions.textContent = '药瓶 × ' + w.potions + '（G 投掷）';
-    el.reloadHint.textContent = w.reloading ? '装弹中…' : (a === 0 ? '按 R 换弹' : '');
+    el.reloadHint.textContent = w.reloading
+      ? '装弹中…'
+      : (a === 0 ? (w.reserve[w.current] > 0 ? '按 R 换弹' : '弹药耗尽，去捡补给！') : '');
+  }
+
+  function ziplineHint(show) {
+    if (el.ziplineHint) el.ziplineHint.style.display = show ? 'block' : 'none';
+  }
+
+  function pickup(text) {
+    if (!el.pickupHint) return;
+    el.pickupHint.textContent = text;
+    el.pickupHint.style.display = 'block';
+    if (el._pickupTimer) clearTimeout(el._pickupTimer);
+    el._pickupTimer = setTimeout(() => { el.pickupHint.style.display = 'none'; }, 1600);
   }
 
   function setEnemies(n, total) {
@@ -68,5 +83,5 @@ HS.ui = (function () {
     show('end');
   }
 
-  return { init, updateHUD, setEnemies, hitmarker, vignette, show, showEnd };
+  return { init, updateHUD, setEnemies, hitmarker, vignette, show, showEnd, ziplineHint, pickup };
 })();

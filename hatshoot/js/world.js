@@ -3,8 +3,9 @@ window.HS = window.HS || {};
 
 HS.world = (function () {
   const C = () => HS.CFG.colors;
-  const colliders = [];   // THREE.Box3 列表（楼体、箱子、木板）
-  const rooftops = [];    // 供敌人生成：{cx, cz, w, d, y}
+  const colliders = [];
+  const rooftops = [];
+  let ziplineLinks = [];
 
   function addBox(scene, cx, cy, cz, w, h, d, color, opts) {
     opts = opts || {};
@@ -53,6 +54,7 @@ HS.world = (function () {
   ];
 
   function build(scene) {
+    ziplineLinks = [];
     const cols = C();
 
     // 天空 & 雾
@@ -141,7 +143,54 @@ HS.world = (function () {
       m.material.fog = true;
     }
 
-    return { colliders, rooftops };
+    const poleMat = new THREE.MeshLambertMaterial({ color: 0x9aa0a6 });
+    const ballMat = new THREE.MeshLambertMaterial({ color: cols.red });
+    const ropeMat = new THREE.MeshLambertMaterial({ color: cols.ropeGray });
+
+    function edgePoint(b, dx, dz) {
+      const len = Math.hypot(dx, dz) || 1;
+      const ux = dx / len, uz = dz / len;
+      const tx = Math.abs(ux) > 0.001 ? (b.w / 2 - 1.2) / Math.abs(ux) : 1e9;
+      const tz = Math.abs(uz) > 0.001 ? (b.d / 2 - 1.2) / Math.abs(uz) : 1e9;
+      const t = Math.min(tx, tz);
+      return { x: b.cx + ux * t, z: b.cz + uz * t };
+    }
+
+    function buildPole(x, topY) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 3.0, 8), poleMat);
+      pole.position.set(x.x, topY - 1.5, x.z);
+      pole.castShadow = true;
+      scene.add(pole);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), ballMat);
+      ball.position.set(x.x, topY + 0.1, x.z);
+      ball.castShadow = true;
+      scene.add(ball);
+    }
+
+    const pairs = [[0, 1], [1, 2], [3, 4], [5, 6]];
+    pairs.forEach((pr) => {
+      const ba = buildings[pr[0]], bb = buildings[pr[1]];
+      const dx = bb.cx - ba.cx, dz = bb.cz - ba.cz;
+      const ea = edgePoint(ba, dx, dz);
+      const eb = edgePoint(bb, -dx, -dz);
+      const aTopY = ba.h + 3.0, bTopY = bb.h + 3.0;
+      const aTop = new THREE.Vector3(ea.x, aTopY, ea.z);
+      const bTop = new THREE.Vector3(eb.x, bTopY, eb.z);
+      buildPole(ea, aTopY);
+      buildPole(eb, bTopY);
+
+      const dist = aTop.distanceTo(bTop);
+      const mid = aTop.clone().add(bTop).multiplyScalar(0.5);
+      mid.y -= dist * HS.CFG.zipline.sag;
+      const curve = new THREE.CatmullRomCurve3([aTop.clone(), mid, bTop.clone()]);
+      const rope = new THREE.Mesh(new THREE.TubeGeometry(curve, 28, 0.028, 6, false), ropeMat);
+      rope.castShadow = true;
+      scene.add(rope);
+
+      ziplineLinks.push({ aTop, bTop, curve });
+    });
+
+    return { colliders, rooftops, ziplineLinks };
   }
 
   // —— 碰撞：胶囊近似为 AABB（脚底 pos，半径 r，高 h），逐轴解算 ——
@@ -198,5 +247,8 @@ HS.world = (function () {
     return best;
   }
 
-  return { build, moveBody, rayHit, colliders, rooftops };
+  return {
+    build, moveBody, rayHit, colliders, rooftops,
+    get ziplineLinks() { return ziplineLinks; }
+  };
 })();

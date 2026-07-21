@@ -63,6 +63,7 @@ window.HS = window.HS || {};
     HS.player.reset();
     HS.weapons.reset();
     HS.enemies.reset();
+    HS.zipline.reset();
     startTime = performance.now() / 1000;
     HS.ui.show(null);
     HS.input.requestLock(renderer.domElement);
@@ -108,6 +109,7 @@ window.HS = window.HS || {};
       }
       HS.player.update(dt, now);
       HS.weapons.update(dt, now);
+      HS.zipline.update(dt);
       HS.enemies.update(dt, now);
       HS.effects.update(dt);
       HS.cameraRig.update(dt, now);
